@@ -2,19 +2,25 @@
   box-sizing: border-box;
 }
 
-html, body {
+html {
   margin: 0;
   padding: 0;
-  width: 100%;
-  min-height: 100%;
+  height: 100%;
   background: #08080a;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: #08080a;
+  overflow-x: hidden;
 }
 
 #root {
   margin: 0;
   padding: 0;
-  width: 100%;
-  min-height: 100%;
+  min-height: 100vh;
 }
 
 /* glass scrollbar for table */

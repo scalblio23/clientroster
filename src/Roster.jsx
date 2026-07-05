@@ -859,6 +859,7 @@ export default function Roster() {
   return (
     <div style={{
       minHeight: "100vh", width: "100%", fontFamily: FONT, color: C.text,
+      position: "relative", overflow: "hidden",
       background: `radial-gradient(1200px 640px at 8% -8%, rgba(255,138,61,0.42), transparent 56%),
                    radial-gradient(760px 520px at 30% 4%, rgba(255,90,20,0.22), transparent 50%),
                    radial-gradient(1000px 620px at 108% 112%, rgba(255,120,30,0.22), transparent 55%),
