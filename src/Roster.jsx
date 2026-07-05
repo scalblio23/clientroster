@@ -475,12 +475,12 @@ function CycleBadge({ value, order, styleFor, onChange }) {
 
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   const cols = ["Name", "Notes", "Days old", "Client Vibe", "Ad Status", "Onboarding", "Priority", "MRR", "Start Date", "Phone", "Email", "Tasks"];
-  const grid = "150px 260px 80px 110px 110px 160px 100px 90px 120px 140px 200px 1fr";
+  const grid = "195px 338px 104px 143px 143px 208px 130px 117px 156px 182px 260px 1fr";
 
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 1600 }}>
+        <div style={{ minWidth: 2080 }}>
           {/* header */}
           <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             {cols.map((h) => (
