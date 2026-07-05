@@ -642,7 +642,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
 
   const cols = ["Task", "Client", "Priority", "Due date", "Dependencies", "Loom", ""];
-  const grid = "2.1fr 1.3fr 1fr 1.1fr 1.2fr 1.5fr 0.4fr";
+  const grid = "2.1fr 1.3fr 1fr 1.4fr 1.5fr 1.5fr 0.4fr";
 
   const commitNew = () => {
     const t = newText.trim();
@@ -666,7 +666,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
         <SectionHead title="All tasks" right={`${tasks.length} open`} />
         <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
-            <div style={{ minWidth: 1160 }}>
+            <div style={{ minWidth: 1260 }}>
               <div style={{ display: "grid", gridTemplateColumns: grid, padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                 {cols.map((h, idx) => (
                   <span key={idx} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase" }}>{h}</span>
