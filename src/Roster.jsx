@@ -686,8 +686,17 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                       style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 14.5, fontWeight: 600, fontFamily: FONT }}
                     />
                     {/* client */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, position: "relative" }}>
                       <ClientIcon color={c?.color || "#9aa0a8"} name={t.client} size={26} />
+                      <select
+                        value={t.client}
+                        onChange={(e) => updateTask(t.id, { client: e.target.value })}
+                        style={{
+                          position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%",
+                        }}
+                      >
+                        {clients.map((cl) => <option key={cl.name} value={cl.name}>{cl.name}</option>)}
+                      </select>
                       <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
                     </div>
                     {/* priority */}
