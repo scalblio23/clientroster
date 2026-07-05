@@ -33,33 +33,28 @@ const GLASS = {
     "inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 24px rgba(255,138,61,0.05), 0 12px 34px rgba(0,0,0,0.45)",
 };
 
-/* ---------- sample data (your real clients — contact details are placeholders) ---------- */
+/* ---------- real client data ---------- */
 const CLIENTS = [
-  { name: "Zippy Financial", contact: "James Thornton", niche: "Finance broker", color: "#ff8a3d", mrr: 2500, start: "12 Feb 2025", status: "good", phone: "0412 448 921", email: "hello@zippyfinancial.com.au" },
-  { name: "Sandford Electrical", contact: "Mark Sandford", niche: "Solar · Hobart", color: "#5b9bff", mrr: 1800, start: "3 Mar 2025", status: "good", phone: "0438 220 145", email: "admin@sandfordelectrical.com.au" },
-  { name: "Goal Finance", contact: "Sarah Liu", niche: "Debt consolidation", color: "#ff6a1f", mrr: 2200, start: "20 Jan 2025", status: "good", phone: "0401 776 233", email: "team@goalfinance.com.au" },
-  { name: "Wilco Relining", contact: "Dave Wilco", niche: "Trades · Plumbing", color: "#f0674a", mrr: 1500, start: "8 Apr 2025", status: "at risk", phone: "0455 019 872", email: "office@wilcorelining.com.au" },
-  { name: "Fundd", contact: "Priya Mehta", niche: "Finance broker", color: "#a78bfa", mrr: 2000, start: "14 May 2025", status: "at risk", phone: "0422 665 108", email: "hello@fundd.com.au" },
-  { name: "Q9 Finance", contact: "Tom Nguyen", niche: "SMSF lending", color: "#ffb27a", mrr: 1900, start: "2 Feb 2025", status: "neutral", phone: "0410 334 590", email: "info@q9finance.com.au" },
-  { name: "Chris Kemp", contact: "Chris Kemp", niche: "Finance broker", color: "#34d399", mrr: 1500, start: "19 Mar 2025", status: "good", phone: "0433 887 214", email: "chris@kempfinance.com.au" },
-  { name: "Credzone", contact: "Liam Park", niche: "Finance", color: "#60a5fa", mrr: 1200, start: "26 Jun 2025", status: "neutral", phone: "0407 512 668", email: "hello@credzone.com.au" },
-  { name: "Bright Prestige", contact: "Nina Roberts", niche: "Cleaning", color: "#fbbf24", mrr: 900, start: "1 Jul 2025", status: "neutral", phone: "0466 203 771", email: "admin@brightprestige.com.au" },
+  { name: "Pascal",          color: "#ff8a3d", mrr: 2500, start: "1 Nov 2025",  status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0405195248",     email: "pascal.wpservices@gmail.com",      notes: "Nothing to do for now, just need to hit 15 bookings this week" },
+  { name: "Jinesh",          color: "#a78bfa", mrr: 0,    start: "1 Nov 2025",  status: "neutral", adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "",               email: "",                                 notes: "Assign content posting this week for Owen" },
+  { name: "Imran",           color: "#34d399", mrr: 1200, start: "1 Dec 2025",  status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0405567178",     email: "imran@khanlegal.com.au",            notes: "10 bookings OR make sure all recent leads are closed" },
+  { name: "Kaniq",           color: "#f0674a", mrr: 1200, start: "1 Feb 2026",  status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0451858710",     email: "kaniq.singh@gmail.com",             notes: "" },
+  { name: "Vin",             color: "#fb923c", mrr: 0,    start: "2 Mar 2026",  status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0416832295",     email: "vin.neh.lal@gmail.com",             notes: "Follow up" },
+  { name: "Chris",           color: "#60a5fa", mrr: 0,    start: "24 Mar 2026", status: "neutral", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0427543942",     email: "chris@adx.com.au",                  notes: "" },
+  { name: "Louisa",          color: "#e879f9", mrr: 0,    start: "22 Apr 2026", status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0414083522",     email: "louisa@zippyfinancial.com.au",      notes: "" },
+  { name: "Luke",            color: "#4ade80", mrr: 0,    start: "30 May 2026", status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0411718555",     email: "luke@goalinvest.com.au",            notes: "Look at current ad account and lead list. Once done figure out how lead quality is going, have a chat with Luke see how is feeling - nurture this relationship." },
+  { name: "Ali",             color: "#fbbf24", mrr: 1200, start: "9 Jun 2026",  status: "neutral", adStatus: "Not Live", onboarding: "Pending",          priority: "Low",    phone: "0428259463",     email: "eliteglossdetailers@hotmail.com",   notes: "" },
+  { name: "Dylan",           color: "#5b9bff", mrr: 1500, start: "11 Jun 2026", status: "neutral", adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0400132725",     email: "sandfordelectrical@outlook.com",    notes: "Solar guy. The main goal next week is to book 2 calls per day minimum." },
+  { name: "Suleiman",        color: "#ff6a1f", mrr: 1000, start: "15 Jun 2026", status: "neutral", adStatus: "Live",     onboarding: "Pending",          priority: "High",   phone: "+61 432 115 549", email: "suleiman302@gmail.com",            notes: "Start calling campaign tomorrow" },
+  { name: "Christian",       color: "#38bdf8", mrr: 1500, start: "17 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 414 373 016", email: "christian@fundd.com.au",           notes: "Need to assess the ads - what is going on with them and how to adjust" },
+  { name: "Adrian",          color: "#f43f5e", mrr: 1170, start: "23 Jun 2026", status: "at risk", adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 431 414 650", email: "adrian@mojefinancial.com.au",      notes: "Need to get his ads live" },
+  { name: "Elias",           color: "#a3e635", mrr: 1250, start: "23 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 478 402 965", email: "elias@settla.com.au",              notes: "Book 2-3 calls per week with this" },
+  { name: "Michael Mfonyam", color: "#c084fc", mrr: 1000, start: "30 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+17042412097",   email: "mike_aze@yahoo.ca",                 notes: "Get his campaign live" },
+  { name: "Mohammed Ahmed",  color: "#fb7185", mrr: 1500, start: "2 Jul 2026",  status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "",               email: "",                                  notes: "Organise video shoot, go through onboarding" },
+  { name: "Brendon Hollins", color: "#fdba74", mrr: 1700, start: "3 Jul 2026",  status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "0401177729",     email: "brendon@cable-co.com.au",           notes: "Get campaign live" },
 ];
 
-/* tasks are global records so they can be listed task-first and reference each other */
-const SEED_TASKS = [
-  { id: "t1", client: "Zippy Financial", text: "Send June performance report", priority: "High", due: "2026-07-10", deps: [], loom: "" },
-  { id: "t2", client: "Zippy Financial", text: "Approve new ad copy", priority: "Medium", due: "", deps: ["t1"], loom: "" },
-  { id: "t3", client: "Sandford Electrical", text: "Ship new video creative", priority: "High", due: "2026-07-08", deps: [], loom: "https://www.loom.com/share/example" },
-  { id: "t4", client: "Goal Finance", text: "Review CPL on new set", priority: "Medium", due: "", deps: [], loom: "" },
-  { id: "t5", client: "Wilco Relining", text: "CPL spike — call client", priority: "High", due: "2026-07-07", deps: [], loom: "" },
-  { id: "t6", client: "Wilco Relining", text: "Rebuild landing page", priority: "Low", due: "", deps: ["t5"], loom: "" },
-  { id: "t7", client: "Fundd", text: "Fix landing page routing", priority: "High", due: "2026-07-09", deps: [], loom: "" },
-  { id: "t8", client: "Q9 Finance", text: "Refresh SMSF quiz funnel", priority: "Low", due: "", deps: [], loom: "" },
-  { id: "t9", client: "Chris Kemp", text: "Book monthly strategy call", priority: "Medium", due: "", deps: [], loom: "" },
-  { id: "t10", client: "Credzone", text: "Finish onboarding checklist", priority: "Medium", due: "2026-07-12", deps: [], loom: "" },
-  { id: "t11", client: "Bright Prestige", text: "Launch first campaign", priority: "High", due: "2026-07-15", deps: [], loom: "" },
-];
+const SEED_TASKS = [];
 
 const PRIORITY = {
   High: { label: "High", color: C.red },
@@ -448,14 +443,44 @@ const cellInput = (extra = {}) => ({
   color: C.text, fontFamily: FONT, width: "100%", ...extra,
 });
 
+const AD_STATUS_ORDER = ["Live", "Not Live"];
+const ONBOARDING_ORDER = ["Onboard Complete", "Pending"];
+const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
+
+const adStatusStyle = (v) => v === "Live"
+  ? { bg: "rgba(52,211,153,0.15)", bd: "rgba(52,211,153,0.3)", fg: "#34d399" }
+  : { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" };
+
+const onboardingStyle = (v) => v === "Onboard Complete"
+  ? { bg: "rgba(91,155,255,0.14)", bd: "rgba(91,155,255,0.28)", fg: "#5b9bff" }
+  : { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" };
+
+const priorityStyle = (v) => ({
+  High:   { bg: "rgba(240,103,74,0.14)",  bd: "rgba(240,103,74,0.28)",  fg: "#f0674a" },
+  Medium: { bg: "rgba(255,138,61,0.14)",  bd: "rgba(255,138,61,0.28)",  fg: "#ff8a3d" },
+  Low:    { bg: "rgba(127,138,163,0.14)", bd: "rgba(127,138,163,0.28)", fg: "#7f8aa3" },
+}[v] || { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" });
+
+function CycleBadge({ value, order, styleFor, onChange }) {
+  const s = styleFor(value);
+  return (
+    <button onClick={() => onChange(order[(order.indexOf(value) + 1) % order.length])} style={{
+      display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer",
+      background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
+      borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
+      whiteSpace: "nowrap",
+    }}>{value}</button>
+  );
+}
+
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
-  const cols = ["Company / Contact", "Niche", "MRR /mo", "Start date", "Days old", "Status", "Phone", "Email", "Tasks"];
-  const grid = "240px 140px 110px 130px 90px 120px 150px 220px 1fr";
+  const cols = ["Name", "Notes", "Days old", "Client Vibe", "Ad Status", "Onboarding", "Priority", "MRR", "Start Date", "Phone", "Email", "Tasks"];
+  const grid = "150px 260px 80px 110px 110px 160px 100px 90px 120px 140px 200px 1fr";
 
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 1200 }}>
+        <div style={{ minWidth: 1600 }}>
           {/* header */}
           <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             {cols.map((h) => (
@@ -470,28 +495,41 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
                 display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 12,
                 padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
               }}>
-                {/* company + contact */}
+                {/* name */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <ClientIcon color={c.color} name={c.name} size={32} />
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <input
-                      value={c.name}
-                      onChange={(e) => updateClient(c.name, { name: e.target.value })}
-                      style={{ ...cellInput(), fontSize: 14, fontWeight: 600, display: "block", width: "100%" }}
-                    />
-                    <input
-                      value={c.contact}
-                      onChange={(e) => updateClient(c.name, { contact: e.target.value })}
-                      style={{ ...cellInput({ color: C.orange }), fontSize: 12, fontWeight: 500, display: "block", width: "100%" }}
-                    />
-                  </div>
+                  <ClientIcon color={c.color} name={c.name} size={30} />
+                  <input
+                    value={c.name}
+                    onChange={(e) => updateClient(c.name, { name: e.target.value })}
+                    style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }}
+                  />
                 </div>
-                {/* niche */}
+                {/* notes */}
                 <input
-                  value={c.niche}
-                  onChange={(e) => updateClient(c.name, { niche: e.target.value })}
-                  style={{ ...cellInput({ fontSize: 13, color: C.muted }) }}
+                  value={c.notes || ""}
+                  onChange={(e) => updateClient(c.name, { notes: e.target.value })}
+                  placeholder="Add note…"
+                  style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }}
                 />
+                {/* days old */}
+                {(() => { const d = daysOld(c.start); const col = daysColor(d); return (
+                  <div style={{ fontSize: 14, fontWeight: 700, color: col }}>
+                    {d !== null ? d : "—"}<span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>d</span>
+                  </div>
+                ); })()}
+                {/* client vibe */}
+                <div>
+                  <button onClick={() => { const o = ["good","neutral","at risk"]; updateClient(c.name, { status: o[(o.indexOf(c.status)+1)%o.length] }); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    <StatusChip status={c.status} />
+                  </button>
+                </div>
+                {/* ad status */}
+                <CycleBadge value={c.adStatus || "Not Live"} order={AD_STATUS_ORDER} styleFor={adStatusStyle} onChange={(v) => updateClient(c.name, { adStatus: v })} />
+                {/* onboarding */}
+                <CycleBadge value={c.onboarding || "Pending"} order={ONBOARDING_ORDER} styleFor={onboardingStyle} onChange={(v) => updateClient(c.name, { onboarding: v })} />
+                {/* priority */}
+                <CycleBadge value={c.priority || "Medium"} order={CLIENT_PRIORITY_ORDER} styleFor={priorityStyle} onChange={(v) => updateClient(c.name, { priority: v })} />
                 {/* mrr */}
                 <input
                   type="number"
@@ -505,26 +543,6 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
                   onChange={(e) => updateClient(c.name, { start: e.target.value })}
                   style={{ ...cellInput({ fontSize: 13 }) }}
                 />
-                {/* days old */}
-                {(() => { const d = daysOld(c.start); const col = daysColor(d); return (
-                  <div style={{ fontSize: 14, fontWeight: 700, color: col }}>
-                    {d !== null ? d : "—"}
-                    <span style={{ fontSize: 10, fontWeight: 500, color: col, opacity: 0.7, marginLeft: 2 }}>d</span>
-                  </div>
-                ); })()}
-                {/* status — click to cycle */}
-                <div>
-                  <button
-                    onClick={() => {
-                      const order = ["good", "neutral", "at risk"];
-                      updateClient(c.name, { status: order[(order.indexOf(c.status) + 1) % order.length] });
-                    }}
-                    title="Click to cycle status"
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                  >
-                    <StatusChip status={c.status} />
-                  </button>
-                </div>
                 {/* phone */}
                 <input
                   value={c.phone}
