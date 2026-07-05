@@ -424,46 +424,121 @@ function ViewToggle({ view, setView }) {
   );
 }
 
-function ClientTable({ clients, tasks, addTask, removeTask }) {
-  const cols = ["Company / Contact", "MRR", "Start date", "Status", "Tasks", "Phone"];
-  const grid = "220px 110px 130px 110px 1fr 120px";
+const MONTH = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+function parseDMY(str) {
+  const [d, m, y] = str.trim().split(" ");
+  return new Date(+y, MONTH[m], +d);
+}
+function daysOld(start) {
+  try {
+    const ms = Date.now() - parseDMY(start).getTime();
+    return Math.max(0, Math.floor(ms / 86400000));
+  } catch { return null; }
+}
+function daysColor(d) {
+  if (d === null) return C.muted;
+  if (d < 60)  return "#34d399"; // fresh — green
+  if (d < 120) return C.orange;  // mid — orange
+  if (d < 180) return "#ffb27a"; // aging — light orange
+  return C.red;                   // long-term risk — red
+}
+
+const cellInput = (extra = {}) => ({
+  background: "transparent", border: "none", outline: "none",
+  color: C.text, fontFamily: FONT, width: "100%", ...extra,
+});
+
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
+  const cols = ["Company / Contact", "Niche", "MRR /mo", "Start date", "Days old", "Status", "Phone", "Email", "Tasks"];
+  const grid = "200px 120px 100px 120px 90px 110px 130px 200px 1fr";
+
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 900 }}>
-          <div style={{ display: "grid", gridTemplateColumns: grid, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)", gap: 12 }}>
+        <div style={{ minWidth: 1200 }}>
+          {/* header */}
+          <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             {cols.map((h) => (
               <span key={h} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase" }}>{h}</span>
             ))}
           </div>
+          {/* rows */}
           {clients.map((c, i) => {
             const cTasks = tasks.filter((t) => t.client === c.name);
             return (
               <div key={c.name} style={{
                 display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 12,
-                padding: "14px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
+                padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
               }}>
                 {/* company + contact */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                  <ClientIcon color={c.color} name={c.name} size={34} />
-                  <div style={{ minWidth: 0, lineHeight: 1.35 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: C.orange, fontWeight: 500, whiteSpace: "nowrap" }}>{c.contact}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <ClientIcon color={c.color} name={c.name} size={32} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <input
+                      value={c.name}
+                      onChange={(e) => updateClient(c.name, { name: e.target.value })}
+                      style={{ ...cellInput(), fontSize: 14, fontWeight: 600, display: "block", width: "100%" }}
+                    />
+                    <input
+                      value={c.contact}
+                      onChange={(e) => updateClient(c.name, { contact: e.target.value })}
+                      style={{ ...cellInput({ color: C.orange }), fontSize: 12, fontWeight: 500, display: "block", width: "100%" }}
+                    />
                   </div>
                 </div>
+                {/* niche */}
+                <input
+                  value={c.niche}
+                  onChange={(e) => updateClient(c.name, { niche: e.target.value })}
+                  style={{ ...cellInput({ fontSize: 13, color: C.muted }) }}
+                />
                 {/* mrr */}
-                <div>
-                  <div style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>{money(c.mrr)}</div>
-                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 500 }}>/mo</div>
-                </div>
+                <input
+                  type="number"
+                  value={c.mrr}
+                  onChange={(e) => updateClient(c.name, { mrr: Number(e.target.value) })}
+                  style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }}
+                />
                 {/* start date */}
-                <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{c.start}</div>
-                {/* status */}
-                <div><StatusChip status={c.status} /></div>
+                <input
+                  value={c.start}
+                  onChange={(e) => updateClient(c.name, { start: e.target.value })}
+                  style={{ ...cellInput({ fontSize: 13 }) }}
+                />
+                {/* days old */}
+                {(() => { const d = daysOld(c.start); const col = daysColor(d); return (
+                  <div style={{ fontSize: 14, fontWeight: 700, color: col }}>
+                    {d !== null ? d : "—"}
+                    <span style={{ fontSize: 10, fontWeight: 500, color: col, opacity: 0.7, marginLeft: 2 }}>d</span>
+                  </div>
+                ); })()}
+                {/* status — click to cycle */}
+                <div>
+                  <button
+                    onClick={() => {
+                      const order = ["good", "neutral", "at risk"];
+                      updateClient(c.name, { status: order[(order.indexOf(c.status) + 1) % order.length] });
+                    }}
+                    title="Click to cycle status"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  >
+                    <StatusChip status={c.status} />
+                  </button>
+                </div>
+                {/* phone */}
+                <input
+                  value={c.phone}
+                  onChange={(e) => updateClient(c.name, { phone: e.target.value })}
+                  style={{ ...cellInput({ fontSize: 13, color: C.muted }) }}
+                />
+                {/* email */}
+                <input
+                  value={c.email}
+                  onChange={(e) => updateClient(c.name, { email: e.target.value })}
+                  style={{ ...cellInput({ fontSize: 13, color: C.muted }) }}
+                />
                 {/* tasks */}
                 <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />
-                {/* phone */}
-                <div style={{ fontSize: 13, color: C.muted }}>{c.phone}</div>
               </div>
             );
           })}
@@ -473,8 +548,8 @@ function ClientTable({ clients, tasks, addTask, removeTask }) {
   );
 }
 
-function ClientsPage({ clients, tasks, addTask, removeTask }) {
-  const [view, setView] = useState("cards");
+function ClientsPage({ clients, tasks, addTask, removeTask, updateClient }) {
+  const [view, setView] = useState("table");
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
   return (
     <>
@@ -517,7 +592,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask }) {
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} />
         )}
       </div>
     </>
@@ -769,7 +844,9 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
 /* ---------- root ---------- */
 export default function Roster() {
   const [tab, setTab] = useState("Overview");
-  const [clients] = useState(CLIENTS);
+  const [clients, setClients] = useState(CLIENTS);
+  const updateClient = (name, patch) =>
+    setClients((cs) => cs.map((c) => (c.name === name ? { ...c, ...patch } : c)));
   const [tasks, setTasks] = useState(SEED_TASKS);
 
   const addTask = (client, text) =>
@@ -791,7 +868,7 @@ export default function Roster() {
         <Header />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
-        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} />}
+        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
       </div>
     </div>
