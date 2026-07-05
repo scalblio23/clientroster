@@ -426,40 +426,44 @@ function ViewToggle({ view, setView }) {
 
 function ClientTable({ clients, tasks, addTask, removeTask }) {
   const cols = ["Company / Contact", "MRR", "Start date", "Status", "Tasks", "Phone"];
-  const grid = "1.8fr 0.8fr 0.9fr 0.9fr 2fr 1fr";
+  const grid = "220px 110px 130px 110px 1fr 120px";
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 1060 }}>
-          <div style={{ display: "grid", gridTemplateColumns: grid, padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ minWidth: 900 }}>
+          <div style={{ display: "grid", gridTemplateColumns: grid, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)", gap: 12 }}>
             {cols.map((h) => (
-              <span key={h} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase", textAlign: h === "MRR" ? "right" : "left" }}>{h}</span>
+              <span key={h} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase" }}>{h}</span>
             ))}
           </div>
           {clients.map((c, i) => {
             const cTasks = tasks.filter((t) => t.client === c.name);
             return (
               <div key={c.name} style={{
-                display: "grid", gridTemplateColumns: grid, alignItems: "center",
+                display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 12,
                 padding: "14px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
               }}>
+                {/* company + contact */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                   <ClientIcon color={c.color} name={c.name} size={34} />
-                  <div style={{ minWidth: 0, lineHeight: 1.3 }}>
-                    <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>{c.name}</div>
+                  <div style={{ minWidth: 0, lineHeight: 1.35 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
                     <div style={{ fontSize: 12, color: C.orange, fontWeight: 500, whiteSpace: "nowrap" }}>{c.contact}</div>
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>{money(c.mrr)}</div>
-                  <div style={{ fontSize: 10.5, color: C.faint, fontWeight: 600, letterSpacing: 0.5 }}>/mo</div>
-                </div>
+                {/* mrr */}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{c.start}</div>
+                  <div style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>{money(c.mrr)}</div>
+                  <div style={{ fontSize: 11, color: C.faint, fontWeight: 500 }}>/mo</div>
                 </div>
-                <span><StatusChip status={c.status} /></span>
+                {/* start date */}
+                <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{c.start}</div>
+                {/* status */}
+                <div><StatusChip status={c.status} /></div>
+                {/* tasks */}
                 <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />
-                <span style={{ fontSize: 13, color: C.muted }}>{c.phone}</span>
+                {/* phone */}
+                <div style={{ fontSize: 13, color: C.muted }}>{c.phone}</div>
               </div>
             );
           })}
