@@ -9,3 +9,23 @@ html, body, #root {
   min-height: 100%;
   background: transparent;
 }
+
+/* glass scrollbar for table */
+.glass-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 138, 61, 0.35) transparent;
+}
+.glass-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.glass-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.glass-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 138, 61, 0.35);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+.glass-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 138, 61, 0.6);
+}

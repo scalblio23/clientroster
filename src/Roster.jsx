@@ -450,11 +450,11 @@ const cellInput = (extra = {}) => ({
 
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   const cols = ["Company / Contact", "Niche", "MRR /mo", "Start date", "Days old", "Status", "Phone", "Email", "Tasks"];
-  const grid = "200px 120px 100px 120px 90px 110px 130px 200px 1fr";
+  const grid = "240px 140px 110px 130px 90px 120px 150px 220px 1fr";
 
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
-      <div style={{ overflowX: "auto" }}>
+      <div className="glass-scroll" style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 1200 }}>
           {/* header */}
           <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
