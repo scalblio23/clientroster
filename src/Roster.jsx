@@ -35,15 +35,15 @@ const GLASS = {
 
 /* ---------- sample data (your real clients — contact details are placeholders) ---------- */
 const CLIENTS = [
-  { name: "Zippy Financial", niche: "Finance broker", color: "#ff8a3d", mrr: 2500, start: "12 Feb 2025", status: "good", phone: "0412 448 921", email: "hello@zippyfinancial.com.au" },
-  { name: "Sandford Electrical", niche: "Solar · Hobart", color: "#5b9bff", mrr: 1800, start: "3 Mar 2025", status: "good", phone: "0438 220 145", email: "admin@sandfordelectrical.com.au" },
-  { name: "Goal Finance", niche: "Debt consolidation", color: "#ff6a1f", mrr: 2200, start: "20 Jan 2025", status: "good", phone: "0401 776 233", email: "team@goalfinance.com.au" },
-  { name: "Wilco Relining", niche: "Trades · Plumbing", color: "#f0674a", mrr: 1500, start: "8 Apr 2025", status: "at risk", phone: "0455 019 872", email: "office@wilcorelining.com.au" },
-  { name: "Fundd", niche: "Finance broker", color: "#a78bfa", mrr: 2000, start: "14 May 2025", status: "at risk", phone: "0422 665 108", email: "hello@fundd.com.au" },
-  { name: "Q9 Finance", niche: "SMSF lending", color: "#ffb27a", mrr: 1900, start: "2 Feb 2025", status: "neutral", phone: "0410 334 590", email: "info@q9finance.com.au" },
-  { name: "Chris Kemp", niche: "Finance broker", color: "#34d399", mrr: 1500, start: "19 Mar 2025", status: "good", phone: "0433 887 214", email: "chris@kempfinance.com.au" },
-  { name: "Credzone", niche: "Finance", color: "#60a5fa", mrr: 1200, start: "26 Jun 2025", status: "neutral", phone: "0407 512 668", email: "hello@credzone.com.au" },
-  { name: "Bright Prestige", niche: "Cleaning", color: "#fbbf24", mrr: 900, start: "1 Jul 2025", status: "neutral", phone: "0466 203 771", email: "admin@brightprestige.com.au" },
+  { name: "Zippy Financial", contact: "James Thornton", niche: "Finance broker", color: "#ff8a3d", mrr: 2500, start: "12 Feb 2025", status: "good", phone: "0412 448 921", email: "hello@zippyfinancial.com.au" },
+  { name: "Sandford Electrical", contact: "Mark Sandford", niche: "Solar · Hobart", color: "#5b9bff", mrr: 1800, start: "3 Mar 2025", status: "good", phone: "0438 220 145", email: "admin@sandfordelectrical.com.au" },
+  { name: "Goal Finance", contact: "Sarah Liu", niche: "Debt consolidation", color: "#ff6a1f", mrr: 2200, start: "20 Jan 2025", status: "good", phone: "0401 776 233", email: "team@goalfinance.com.au" },
+  { name: "Wilco Relining", contact: "Dave Wilco", niche: "Trades · Plumbing", color: "#f0674a", mrr: 1500, start: "8 Apr 2025", status: "at risk", phone: "0455 019 872", email: "office@wilcorelining.com.au" },
+  { name: "Fundd", contact: "Priya Mehta", niche: "Finance broker", color: "#a78bfa", mrr: 2000, start: "14 May 2025", status: "at risk", phone: "0422 665 108", email: "hello@fundd.com.au" },
+  { name: "Q9 Finance", contact: "Tom Nguyen", niche: "SMSF lending", color: "#ffb27a", mrr: 1900, start: "2 Feb 2025", status: "neutral", phone: "0410 334 590", email: "info@q9finance.com.au" },
+  { name: "Chris Kemp", contact: "Chris Kemp", niche: "Finance broker", color: "#34d399", mrr: 1500, start: "19 Mar 2025", status: "good", phone: "0433 887 214", email: "chris@kempfinance.com.au" },
+  { name: "Credzone", contact: "Liam Park", niche: "Finance", color: "#60a5fa", mrr: 1200, start: "26 Jun 2025", status: "neutral", phone: "0407 512 668", email: "hello@credzone.com.au" },
+  { name: "Bright Prestige", contact: "Nina Roberts", niche: "Cleaning", color: "#fbbf24", mrr: 900, start: "1 Jul 2025", status: "neutral", phone: "0466 203 771", email: "admin@brightprestige.com.au" },
 ];
 
 /* tasks are global records so they can be listed task-first and reference each other */
@@ -227,16 +227,23 @@ function ClientCard({ c, tasks = [], onAdd, onRemove }) {
           <ClientIcon color={c.color} name={c.name} size={40} />
           <div style={{ lineHeight: 1.3 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>{c.name}</div>
-            <div style={{ fontSize: 12.5, color: C.muted }}>{c.niche}</div>
+            <div style={{ fontSize: 12.5, color: C.orange, fontWeight: 500 }}>{c.contact}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{c.niche}</div>
           </div>
         </div>
         <StatusChip status={c.status} />
       </div>
 
-      {/* MRR */}
-      <div style={{ marginTop: 20, display: "flex", alignItems: "baseline", gap: 6 }}>
-        <span style={{ fontSize: 30, fontWeight: 700, color: C.text, letterSpacing: -0.5 }}>{money(c.mrr)}</span>
-        <span style={{ fontSize: 15, color: C.faint, fontWeight: 500 }}>/mo MRR</span>
+      {/* MRR + Start */}
+      <div style={{ marginTop: 20, display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ ...GLASS, borderRadius: 12, padding: "10px 14px", flex: "1 1 100px" }}>
+          <div style={{ fontSize: 10, letterSpacing: 1, color: C.faint, fontWeight: 600, marginBottom: 4 }}>MRR</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: -0.5 }}>{money(c.mrr)}</div>
+        </div>
+        <div style={{ ...GLASS, borderRadius: 12, padding: "10px 14px", flex: "1 1 100px" }}>
+          <div style={{ fontSize: 10, letterSpacing: 1, color: C.faint, fontWeight: 600, marginBottom: 4 }}>START DATE</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{c.start}</div>
+        </div>
       </div>
 
       {/* tasks */}
@@ -249,7 +256,6 @@ function ClientCard({ c, tasks = [], onAdd, onRemove }) {
 
       {/* footer meta */}
       <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", gap: 8 }}>
-        <MetaRow icon={Calendar}>Started {c.start}</MetaRow>
         <MetaRow icon={Phone}>{c.phone}</MetaRow>
         <MetaRow icon={Mail}>{c.email}</MetaRow>
       </div>
@@ -419,12 +425,12 @@ function ViewToggle({ view, setView }) {
 }
 
 function ClientTable({ clients, tasks, addTask, removeTask }) {
-  const cols = ["Client", "MRR", "Start", "Status", "Tasks", "Phone"];
-  const grid = "1.6fr 0.7fr 0.8fr 0.9fr 2fr 1fr";
+  const cols = ["Company / Contact", "MRR", "Start date", "Status", "Tasks", "Phone"];
+  const grid = "1.8fr 0.8fr 0.9fr 0.9fr 2fr 1fr";
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 1000 }}>
+        <div style={{ minWidth: 1060 }}>
           <div style={{ display: "grid", gridTemplateColumns: grid, padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             {cols.map((h) => (
               <span key={h} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase", textAlign: h === "MRR" ? "right" : "left" }}>{h}</span>
@@ -441,11 +447,16 @@ function ClientTable({ clients, tasks, addTask, removeTask }) {
                   <ClientIcon color={c.color} name={c.name} size={34} />
                   <div style={{ minWidth: 0, lineHeight: 1.3 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.email}</div>
+                    <div style={{ fontSize: 12, color: C.orange, fontWeight: 500, whiteSpace: "nowrap" }}>{c.contact}</div>
                   </div>
                 </div>
-                <span style={{ fontSize: 14.5, fontWeight: 600, color: C.text, textAlign: "right" }}>{money(c.mrr)}</span>
-                <span style={{ fontSize: 13, color: C.muted }}>{c.start}</span>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>{money(c.mrr)}</div>
+                  <div style={{ fontSize: 10.5, color: C.faint, fontWeight: 600, letterSpacing: 0.5 }}>/mo</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{c.start}</div>
+                </div>
                 <span><StatusChip status={c.status} /></span>
                 <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />
                 <span style={{ fontSize: 13, color: C.muted }}>{c.phone}</span>
