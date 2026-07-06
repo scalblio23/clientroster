@@ -530,11 +530,12 @@ function clientSortVal(key, c) {
 
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
-  const [dragOver, setDragOver] = useState(null);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
-  const dragKey = useRef(null);
+  const [dropIdx, setDropIdx] = useState(null);   // null = not dragging; number = insert-before index
+  const draggingKey = useRef(null);
   const didDrag = useRef(false);
+  const headerRef = useRef(null);
 
   const cols = colOrder.map((k) => COL_DEFS.find((d) => d.key === k));
   const grid = cols.map((c) => c.width).join(" ");
@@ -555,35 +556,57 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
       })
     : clients;
 
-  const onDragStart = (e, key) => {
-    dragKey.current = key;
+  // Mouse-based drag — avoids all HTML5 drag-and-drop quirks
+  const startDrag = useCallback((e, key) => {
+    e.preventDefault();
+    draggingKey.current = key;
     didDrag.current = false;
-    e.dataTransfer.effectAllowed = "move";
-  };
-  const onDragEnter = (e, key) => {
-    e.preventDefault();
-    if (e.currentTarget !== e.target) return; // ignore child elements
-    if (key !== dragKey.current) { didDrag.current = true; setDragOver(key); }
-  };
-  const onDrop = (e, targetKey) => {
-    e.preventDefault();
-    if (!dragKey.current || dragKey.current === targetKey) return;
-    setColOrder((prev) => {
-      const next = [...prev];
-      const from = next.indexOf(dragKey.current);
-      const to = next.indexOf(targetKey);
-      next.splice(from, 1);
-      next.splice(to, 0, dragKey.current);
-      return next;
-    });
-    dragKey.current = null;
-    setDragOver(null);
-  };
-  const onDragEnd = () => {
-    dragKey.current = null;
-    setDragOver(null);
-    setTimeout(() => { didDrag.current = false; }, 0);
-  };
+    setDropIdx(colOrder.indexOf(key));
+
+    const getDropIdx = (clientX) => {
+      if (!headerRef.current) return null;
+      const cells = [...headerRef.current.children];
+      for (let i = 0; i < cells.length; i++) {
+        const r = cells[i].getBoundingClientRect();
+        if (clientX < r.left + r.width / 2) return i;
+      }
+      return cells.length;
+    };
+
+    const onMove = (mv) => {
+      const idx = getDropIdx(mv.clientX);
+      if (idx !== null) { didDrag.current = true; setDropIdx(idx); }
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      const fromIdx = colOrder.indexOf(draggingKey.current);
+      const rawTo = getDropIdx(window._lastMouseX ?? 0) ?? fromIdx;
+      const toIdx = rawTo > fromIdx ? rawTo - 1 : rawTo;
+      if (fromIdx !== toIdx) {
+        setColOrder((prev) => {
+          const next = [...prev];
+          next.splice(fromIdx, 1);
+          next.splice(toIdx, 0, draggingKey.current);
+          return next;
+        });
+      }
+      draggingKey.current = null;
+      setDropIdx(null);
+      setTimeout(() => { didDrag.current = false; }, 50);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [colOrder]);
+
+  // track last mouse X for onUp
+  useEffect(() => {
+    const track = (e) => { window._lastMouseX = e.clientX; };
+    window.addEventListener("mousemove", track);
+    return () => window.removeEventListener("mousemove", track);
+  }, []);
 
   const renderCell = (colKey, c, cTasks) => {
     switch (colKey) {
@@ -643,32 +666,50 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 2200 }}>
           {/* header — drag to reorder, click to sort */}
-          <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            {cols.map((col) => (
+          <div
+            ref={headerRef}
+            style={{ position: "relative", display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            {cols.map((col, i) => (
               <div
                 key={col.key}
-                draggable
-                onDragStart={(e) => onDragStart(e, col.key)}
-                onDragEnter={(e) => onDragEnter(e, col.key)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => onDrop(e, col.key)}
-                onDragEnd={onDragEnd}
+                onMouseDown={(e) => startDrag(e, col.key)}
                 onClick={() => handleHeaderClick(col.key)}
                 style={{
+                  position: "relative",
                   fontSize: 11, letterSpacing: 1, fontWeight: 600,
-                  color: sortKey === col.key ? C.orange : dragOver === col.key ? C.orange : C.muted,
+                  color: sortKey === col.key ? C.orange : C.muted,
                   textTransform: "uppercase", cursor: "grab", userSelect: "none",
-                  borderBottom: dragOver === col.key ? `2px solid ${C.orange}` : sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
+                  borderBottom: sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
                   paddingBottom: 2, transition: "color .15s, border-color .15s",
                   display: "flex", alignItems: "center",
+                  opacity: draggingKey.current === col.key ? 0.4 : 1,
                 }}
               >
-                <span style={{ pointerEvents: "none" }}>{col.label}</span>
+                {/* drop indicator line — appears before this column */}
+                {dropIdx === i && draggingKey.current !== col.key && (
+                  <div style={{
+                    position: "absolute", left: -8, top: -4, bottom: -4, width: 2,
+                    background: C.orange, borderRadius: 2,
+                    boxShadow: `0 0 6px ${C.orange}`,
+                    pointerEvents: "none",
+                  }} />
+                )}
+                {col.label}
                 {col.key !== "tasks" && col.key !== "notes" && (
-                  <span style={{ pointerEvents: "none" }}><SortIcon dir={sortKey === col.key ? sortDir : null} /></span>
+                  <SortIcon dir={sortKey === col.key ? sortDir : null} />
                 )}
               </div>
             ))}
+            {/* drop indicator at the very end */}
+            {dropIdx === cols.length && (
+              <div style={{
+                position: "absolute", right: 24, top: 4, bottom: 4, width: 2,
+                background: C.orange, borderRadius: 2,
+                boxShadow: `0 0 6px ${C.orange}`,
+                pointerEvents: "none",
+              }} />
+            )}
           </div>
           {/* rows */}
           {sortedClients.map((c, i) => {
