@@ -94,7 +94,7 @@ app.put("/api/tasks", auth, (req, res) => {
 });
 
 /* fallback to index.html for SPA routing */
-app.get("*", (_, res) =>
+app.get("*path", (_, res) =>
   res.sendFile(path.join(__dirname, "dist", "index.html"))
 );
 
