@@ -1,3 +1,27 @@
+/* glass scrollbar for client table */
+.glass-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.glass-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.glass-scroll::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.03);
+  border-radius: 999px;
+  margin: 0 20px;
+}
+.glass-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.14);
+  border-radius: 999px;
+}
+.glass-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.28);
+}
+.glass-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
