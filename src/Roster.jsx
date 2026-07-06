@@ -883,7 +883,7 @@ export default function Roster() {
                    radial-gradient(1000px 620px at 108% 112%, rgba(255,120,30,0.22), transparent 55%),
                    ${C.bg}`,
     }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "40px 28px 100px" }}>
+      <div style={{ maxWidth: 1560, margin: "0 auto", padding: "40px 28px 100px" }}>
         <Header />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
