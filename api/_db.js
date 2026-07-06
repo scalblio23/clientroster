@@ -1,24 +1,19 @@
-import { put, list, get } from "@vercel/blob";
+import { put, list } from "@vercel/blob";
 
 async function readJson(key) {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (!blobs.length) return null;
-    const result = await get(blobs[0].url, { access: "private" });
-    if (!result || !result.stream) return null;
-    const reader = result.stream.getReader();
-    const chunks = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-    const total = chunks.reduce((n, c) => n + c.length, 0);
-    const merged = new Uint8Array(total);
-    let offset = 0;
-    for (const c of chunks) { merged.set(c, offset); offset += c.length; }
-    return JSON.parse(new TextDecoder().decode(merged));
-  } catch { return null; }
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    const res = await fetch(blobs[0].url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error("readJson error:", key, e?.message);
+    return null;
+  }
 }
 
 async function writeJson(key, data) {
