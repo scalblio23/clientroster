@@ -1,8 +1,8 @@
-import { kv } from "@vercel/kv";
+import { delToken } from "./_store.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
   const token = req.headers["x-token"];
-  if (token) await kv.del(`token:${token}`);
+  if (token) delToken(token);
   res.json({ ok: true });
 }
