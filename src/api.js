@@ -31,6 +31,9 @@ export const api = {
   getTasks:   ()        => req("GET",  "/tasks"),
   putTasks:   (body)    => req("PUT",  "/tasks", body),
 
+  getSettings:    ()     => req("GET",  "/settings"),
+  putSettings:    (data) => req("PUT",  "/settings", data),
+
   getUsers:       ()     => req("GET",  "/users"),
   getLogs:        ()     => req("GET",  "/logs"),
   changePassword: (data) => req("POST", "/changepassword", data),

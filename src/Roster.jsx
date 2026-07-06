@@ -488,26 +488,21 @@ const ONBOARDING_ORDER = ["Onboard Complete", "Pending"];
 const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
 const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
 
-const adStatusStyle = (v) => v === "Live"
-  ? { bg: "rgba(52,211,153,0.15)", bd: "rgba(52,211,153,0.3)", fg: "#34d399" }
-  : { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" };
+const DEFAULT_COLORS = {
+  adStatus:   { "Live": "#34d399", "Not Live": "#9aa0a8" },
+  onboarding: { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
+  priority:   { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
+  callType:   { "Callout": "#fbbf24", "Booking": "#34d399", "Transfer": "#5b9bff", "Callback": "#c084fc" },
+};
 
-const onboardingStyle = (v) => v === "Onboard Complete"
-  ? { bg: "rgba(91,155,255,0.14)", bd: "rgba(91,155,255,0.28)", fg: "#5b9bff" }
-  : { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" };
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
 
-const priorityStyle = (v) => ({
-  High:   { bg: "rgba(240,103,74,0.14)",  bd: "rgba(240,103,74,0.28)",  fg: "#f0674a" },
-  Medium: { bg: "rgba(255,138,61,0.14)",  bd: "rgba(255,138,61,0.28)",  fg: "#ff8a3d" },
-  Low:    { bg: "rgba(127,138,163,0.14)", bd: "rgba(127,138,163,0.28)", fg: "#7f8aa3" },
-}[v] || { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" });
-
-const callTypeStyle = (v) => ({
-  Callout:  { bg: "rgba(251,191,36,0.14)",  bd: "rgba(251,191,36,0.28)",  fg: "#fbbf24" },
-  Booking:  { bg: "rgba(52,211,153,0.14)",  bd: "rgba(52,211,153,0.28)",  fg: "#34d399" },
-  Transfer: { bg: "rgba(91,155,255,0.14)",  bd: "rgba(91,155,255,0.28)",  fg: "#5b9bff" },
-  Callback: { bg: "rgba(192,132,252,0.14)", bd: "rgba(192,132,252,0.28)", fg: "#c084fc" },
-}[v] || { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" });
+function chipStyle(color) {
+  return { bg: `rgba(${hexToRgb(color)},0.14)`, bd: `rgba(${hexToRgb(color)},0.3)`, fg: color };
+}
 
 function BlurInput({ value, onCommit, type = "text", placeholder, style }) {
   const [local, setLocal] = useState(value);
@@ -525,15 +520,109 @@ function BlurInput({ value, onCommit, type = "text", placeholder, style }) {
   );
 }
 
-function CycleBadge({ value, order, styleFor, onChange }) {
-  const s = styleFor(value);
+function SelectPicker({ field, value, options, colors, onChangeValue, onChangeColor }) {
+  const [open, setOpen] = useState(false);
+  const [editingColor, setEditingColor] = useState(null);
+  const ref = useRef(null);
+  const colorInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) { setEditingColor(null); return; }
+    const close = (e) => { if (!ref.current?.contains(e.target)) { setOpen(false); } };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const color = colors[value] || "#9aa0a8";
+  const s = chipStyle(color);
+
   return (
-    <button onClick={() => onChange(order[(order.indexOf(value) + 1) % order.length])} style={{
-      display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer",
-      background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
-      borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
-      whiteSpace: "nowrap",
-    }}>{value}</button>
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
+      <button onClick={() => setOpen((o) => !o)} style={{
+        display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+        background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
+        borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
+        whiteSpace: "nowrap", fontFamily: FONT,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />
+        {value}
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
+          background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 160,
+        }}>
+          {options.map((opt) => {
+            const optColor = colors[opt] || "#9aa0a8";
+            const isSelected = opt === value;
+            return (
+              <div key={opt} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "6px 8px", borderRadius: 8,
+                background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
+                border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
+              }}>
+                {/* color swatch — click to edit */}
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <button
+                    title="Edit color"
+                    onClick={(e) => { e.stopPropagation(); setEditingColor(editingColor === opt ? null : opt); }}
+                    style={{
+                      width: 14, height: 14, borderRadius: 4, background: optColor,
+                      border: "2px solid rgba(255,255,255,0.2)", cursor: "pointer", padding: 0,
+                      boxShadow: editingColor === opt ? `0 0 0 2px ${optColor}` : "none",
+                    }}
+                  />
+                  {editingColor === opt && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 1000,
+                        background: "#242428", border: "1px solid rgba(255,255,255,0.15)",
+                        borderRadius: 10, padding: 10, boxShadow: "0 6px 24px rgba(0,0,0,0.7)",
+                        display: "flex", flexDirection: "column", gap: 8, width: 160,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: "#9aa0a8", fontWeight: 600, letterSpacing: 0.5 }}>COLOUR — {opt}</div>
+                      <input
+                        ref={colorInputRef}
+                        type="color"
+                        defaultValue={optColor}
+                        onChange={(e) => onChangeColor(field, opt, e.target.value)}
+                        style={{ width: "100%", height: 36, borderRadius: 6, border: "none", cursor: "pointer", background: "none" }}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, color: "#9aa0a8" }}>Hex</span>
+                        <input
+                          type="text"
+                          defaultValue={optColor}
+                          maxLength={7}
+                          onChange={(e) => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChangeColor(field, opt, e.target.value); }}
+                          style={{
+                            flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
+                            color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, fontFamily: "monospace",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* option label */}
+                <button onClick={() => { onChangeValue(opt); setOpen(false); }} style={{
+                  flex: 1, background: "none", border: "none", textAlign: "left", cursor: "pointer",
+                  color: optColor, fontSize: 13, fontWeight: 500, fontFamily: FONT, padding: 0,
+                }}>
+                  {opt}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -583,7 +672,7 @@ function clientSortVal(key, c) {
   }
 }
 
-function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor }) {
   const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
@@ -681,9 +770,9 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
         return <div style={{ fontSize: 14, fontWeight: 700, color: col }}>{d ?? "—"}<span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>d</span></div>;
       }
       case "vibe": return <StatusPicker value={c.status} onChange={(v) => updateClient(c.name, { status: v })} />;
-      case "adStatus": return <CycleBadge value={c.adStatus || "Not Live"} order={AD_STATUS_ORDER} styleFor={adStatusStyle} onChange={(v) => updateClient(c.name, { adStatus: v })} />;
-      case "onboarding": return <CycleBadge value={c.onboarding || "Pending"} order={ONBOARDING_ORDER} styleFor={onboardingStyle} onChange={(v) => updateClient(c.name, { onboarding: v })} />;
-      case "priority": return <CycleBadge value={c.priority || "Medium"} order={CLIENT_PRIORITY_ORDER} styleFor={priorityStyle} onChange={(v) => updateClient(c.name, { priority: v })} />;
+      case "adStatus": return <SelectPicker field="adStatus" value={c.adStatus || "Not Live"} options={AD_STATUS_ORDER} colors={enumColors.adStatus} onChangeValue={(v) => updateClient(c.name, { adStatus: v })} onChangeColor={updateEnumColor} />;
+      case "onboarding": return <SelectPicker field="onboarding" value={c.onboarding || "Pending"} options={ONBOARDING_ORDER} colors={enumColors.onboarding} onChangeValue={(v) => updateClient(c.name, { onboarding: v })} onChangeColor={updateEnumColor} />;
+      case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
       case "mrr": return <BlurInput type="number" value={c.mrr ?? 0} onCommit={(v) => updateClient(c.name, { mrr: Number(v) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
       case "adSpend": return <BlurInput type="number" value={c.adSpend ?? 0} onCommit={(v) => updateClient(c.name, { adSpend: Number(v) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
       case "leads": return <BlurInput type="number" value={c.leads ?? 0} onCommit={(v) => updateClient(c.name, { leads: Number(v) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
@@ -703,7 +792,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
           )}
         </div>
       );
-      case "callType": return <CycleBadge value={c.callType || "Callout"} order={CALL_TYPE_ORDER} styleFor={callTypeStyle} onChange={(v) => updateClient(c.name, { callType: v })} />;
+      case "callType": return <SelectPicker field="callType" value={c.callType || "Callout"} options={CALL_TYPE_ORDER} colors={enumColors.callType} onChangeValue={(v) => updateClient(c.name, { callType: v })} onChangeColor={updateEnumColor} />;
       case "phone": return <BlurInput value={c.phone || ""} onCommit={(v) => updateClient(c.name, { phone: v })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
       case "email": return <BlurInput value={c.email || ""} onCommit={(v) => updateClient(c.name, { email: v })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
       case "tasks": return <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />;
@@ -781,7 +870,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   );
 }
 
-function ClientsPage({ clients, tasks, addTask, removeTask, updateClient }) {
+function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor }) {
   const [view, setView] = useState("table");
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
   return (
@@ -825,7 +914,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient }) {
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} />
         )}
       </div>
     </>
@@ -1386,14 +1475,16 @@ export default function Roster() {
   const [clients, setClients] = useState(CLIENTS);
   const [tasks, setTasks]     = useState(SEED_TASKS);
   const [ready, setReady]     = useState(false);
+  const [enumColors, setEnumColors] = useState(() => ({ ...DEFAULT_COLORS }));
 
   /* load shared data once logged in */
   useEffect(() => {
     if (!user) return;
-    Promise.all([api.getClients(), api.getTasks()])
-      .then(([c, t]) => {
+    Promise.all([api.getClients(), api.getTasks(), api.getSettings()])
+      .then(([c, t, s]) => {
         if (c.length) setClients(c);
         if (t.length) setTasks(t);
+        if (s?.enumColors) setEnumColors((prev) => ({ ...prev, ...s.enumColors }));
         setReady(true);
       })
       .catch(() => setReady(true));
@@ -1461,6 +1552,14 @@ export default function Roster() {
   };
   const updateTask = (id, patch) => setAndSaveTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
+  const updateEnumColor = useCallback((field, option, hex) => {
+    setEnumColors((prev) => {
+      const next = { ...prev, [field]: { ...prev[field], [option]: hex } };
+      api.getSettings().then((s) => api.putSettings({ ...s, enumColors: next })).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const logout = async () => { await api.logout().catch(() => {}); api.clearToken(); setUser(null); setReady(false); };
 
   if (!user) return <AuthScreen onLogin={(u) => setUser(u)} />;
@@ -1483,7 +1582,7 @@ export default function Roster() {
         <Header user={user} onLogout={logout} />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
-        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} />}
+        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
         {tab === "Settings" && <SettingsPage user={user} />}
       </div>

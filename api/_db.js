@@ -59,6 +59,9 @@ export async function delToken(token) {
   await writeJson("roster/tokens.json", tokens);
 }
 
+export async function getSettings() { return (await readJson("roster/settings.json")) ?? {}; }
+export async function saveSettings(data) { await writeJson("roster/settings.json", data); }
+
 export async function getClients() { return (await readJson("roster/clients.json")) ?? []; }
 export async function saveClients(data) { await writeJson("roster/clients.json", data); }
 export async function getTasks() { return (await readJson("roster/tasks.json")) ?? []; }
