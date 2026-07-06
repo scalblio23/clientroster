@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.51</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.52</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -469,7 +469,10 @@ const DEFAULT_COLORS = {
   onboarding: { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
   priority:   { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
   callType:   { "Callout": "#fbbf24", "Booking": "#34d399", "Transfer": "#5b9bff", "Callback": "#c084fc" },
+  niche:      { "Law": "#5b9bff", "Finance": "#34d399", "Trade": "#fbbf24", "Health": "#a78bfa", "Real Estate": "#fb923c", "E-Commerce": "#f472b6", "Other": "#9aa0a8" },
 };
+
+const DEFAULT_NICHE_OPTIONS = ["Law", "Finance", "Trade", "Health", "Real Estate", "E-Commerce", "Other"];
 
 const VIBE_OPTIONS = ["good", "neutral", "at risk"];
 const VIBE_LABELS  = { good: "Good", neutral: "Neutral", "at risk": "At risk" };
@@ -499,9 +502,11 @@ function BlurInput({ value, onCommit, type = "text", placeholder, style }) {
   );
 }
 
-function SelectPicker({ field, value, options, colors, onChangeValue, onChangeColor, labelMap }) {
+function SelectPicker({ field, value, options, colors, onChangeValue, onChangeColor, labelMap, onAddOption }) {
   const [open, setOpen] = useState(false);
   const [editingColor, setEditingColor] = useState(null);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newOptDraft, setNewOptDraft] = useState("");
   const ref = useRef(null);
   const colorInputRef = useRef(null);
 
@@ -512,8 +517,9 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
+  const isEmpty = !value;
   const color = colors[value] || "#9aa0a8";
-  const s = chipStyle(color);
+  const s = isEmpty ? { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" } : chipStyle(color);
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
@@ -523,8 +529,8 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
         borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
         whiteSpace: "nowrap", fontFamily: FONT,
       }}>
-        <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />
-        {labelMap ? labelMap[value] || value : value}
+        {!isEmpty && <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />}
+        {isEmpty ? "Select…" : (labelMap ? labelMap[value] || value : value)}
       </button>
 
       {open && (
@@ -546,7 +552,6 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
                   background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
                   border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
                 }}>
-                  {/* select option */}
                   <span style={{ width: 8, height: 8, borderRadius: 99, background: optColor, flexShrink: 0 }} />
                   <button onClick={() => { onChangeValue(opt); setOpen(false); }} style={{
                     flex: 1, background: "none", border: "none", textAlign: "left", cursor: "pointer",
@@ -554,7 +559,6 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
                   }}>
                     {labelMap ? labelMap[opt] || opt : opt}
                   </button>
-                  {/* color edit button */}
                   <button
                     onClick={() => setEditingColor(editing ? null : opt)}
                     title="Edit colour"
@@ -571,7 +575,6 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
                   </button>
                 </div>
 
-                {/* inline color editor */}
                 {editing && (
                   <div style={{
                     margin: "4px 6px 6px", padding: "10px 12px",
@@ -604,6 +607,32 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
               </div>
             );
           })}
+          {onAddOption && (
+            <div style={{ borderTop: options.length ? "1px solid rgba(255,255,255,0.07)" : "none", marginTop: 2, paddingTop: 4 }}>
+              {addingNew ? (
+                <input
+                  autoFocus
+                  value={newOptDraft}
+                  onChange={(e) => setNewOptDraft(e.target.value)}
+                  onBlur={() => { if (newOptDraft.trim()) onAddOption(newOptDraft.trim()); setAddingNew(false); setNewOptDraft(""); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { if (newOptDraft.trim()) onAddOption(newOptDraft.trim()); setAddingNew(false); setNewOptDraft(""); }
+                    if (e.key === "Escape") { setAddingNew(false); setNewOptDraft(""); }
+                  }}
+                  placeholder="New option…"
+                  style={{ width: "100%", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: C.text, borderRadius: 7, padding: "6px 9px", fontSize: 12.5, fontFamily: FONT, outline: "none", boxSizing: "border-box" }}
+                />
+              ) : (
+                <button onClick={() => setAddingNew(true)} style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 6,
+                  background: "transparent", border: "1px dashed rgba(255,255,255,0.16)",
+                  color: C.muted, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT,
+                }}>
+                  <Plus size={11} /> Add option
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -623,6 +652,8 @@ const COL_DEFS = [
   { key: "leads",      label: "Leads",       width: "80px"  },
   { key: "cpl",        label: "CPL",         width: "90px"  },
   { key: "startDate",  label: "Start Date",  width: "120px" },
+  { key: "niche",       label: "Niche",        width: "140px" },
+  { key: "strategyDoc", label: "Strategy Doc", width: "160px" },
   { key: "script",     label: "Script",      width: "160px" },
   { key: "callType",   label: "Call Type",   width: "120px" },
   { key: "phone",      label: "Phone",       width: "150px" },
@@ -648,6 +679,8 @@ function clientSortVal(key, c) {
     case "onboarding": return c.onboarding ?? "";
     case "priority":   return ["High","Medium","Low"].indexOf(c.priority);
     case "startDate":  return c.start ?? "";
+    case "niche":       return c.niche ?? "";
+    case "strategyDoc": return c.strategyDoc ?? "";
     case "script":     return c.script ?? "";
     case "callType":   return CALL_TYPE_ORDER.indexOf(c.callType ?? "Callout");
     case "phone":      return c.phone ?? "";
@@ -656,7 +689,7 @@ function clientSortVal(key, c) {
   }
 }
 
-function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor }) {
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption }) {
   const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
@@ -765,6 +798,28 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
         return <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>{cpl ? `$${cpl}` : "—"}</div>;
       }
       case "startDate": return <BlurInput value={c.start || ""} onCommit={(v) => updateClient(c.name, { start: v })} style={{ ...cellInput({ fontSize: 13 }) }} />;
+      case "niche": return (
+        <SelectPicker
+          field="niche"
+          value={c.niche || ""}
+          options={nicheOptions}
+          colors={enumColors.niche || DEFAULT_COLORS.niche}
+          onChangeValue={(v) => updateClient(c.name, { niche: v })}
+          onChangeColor={updateEnumColor}
+          onAddOption={addNicheOption}
+        />
+      );
+      case "strategyDoc": return (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <BlurInput value={c.strategyDoc || ""} onCommit={(v) => updateClient(c.name, { strategyDoc: v })}
+            placeholder="https://…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
+          {c.strategyDoc && (
+            <a href={c.strategyDoc} target="_blank" rel="noreferrer" style={{ color: C.orange, flexShrink: 0, display: "grid", placeItems: "center" }}>
+              <ExternalLink size={13} />
+            </a>
+          )}
+        </div>
+      );
       case "script": return (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           <BlurInput value={c.script || ""} onCommit={(v) => updateClient(c.name, { script: v })}
@@ -787,7 +842,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 2200 }}>
+        <div style={{ minWidth: 2500 }}>
           {/* header — drag to reorder, click to sort */}
           <div
             ref={headerRef}
@@ -854,7 +909,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
   );
 }
 
-function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor }) {
+function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption }) {
   const [view, setView] = useState("table");
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
   return (
@@ -898,7 +953,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} />
         )}
       </div>
     </>
@@ -1478,6 +1533,7 @@ export default function Roster() {
   const [tasks, setTasks]     = useState(SEED_TASKS);
   const [ready, setReady]     = useState(false);
   const [enumColors, setEnumColors] = useState(() => ({ ...DEFAULT_COLORS }));
+  const [nicheOptions, setNicheOptions] = useState(DEFAULT_NICHE_OPTIONS);
   const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
   const saveStatusTimer = useRef(null);
 
@@ -1494,6 +1550,7 @@ export default function Roster() {
         }
         if (t.length) setTasks(t);
         if (s?.enumColors) setEnumColors((prev) => ({ ...prev, ...s.enumColors }));
+        if (s?.nicheOptions?.length) setNicheOptions(s.nicheOptions);
         setReady(true);
       })
       .catch(() => setReady(true));
@@ -1567,7 +1624,7 @@ export default function Roster() {
 
   const setAndSaveTasks = (fn, changeEntry) => setTasks((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; scheduleTaskSave(changeEntry || null); return next; });
 
-  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes" };
+  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc" };
 
   // No side effects inside setState — use clientsRef for old values
   const updateClient = (name, patch) => {
@@ -1603,6 +1660,19 @@ export default function Roster() {
     });
   }, []);
 
+  const addNicheOption = useCallback((label) => {
+    setNicheOptions((prev) => {
+      if (prev.includes(label)) return prev;
+      const next = [...prev, label];
+      setEnumColors((ec) => {
+        const nextColors = { ...ec, niche: { ...ec.niche, [label]: "#9aa0a8" } };
+        api.getSettings().then((s) => api.putSettings({ ...s, enumColors: nextColors, nicheOptions: next })).catch(() => {});
+        return nextColors;
+      });
+      return next;
+    });
+  }, []);
+
   const logout = async () => { await api.logout().catch(() => {}); api.clearToken(); setUser(null); setReady(false); };
 
   if (!user) return <AuthScreen onLogin={(u) => setUser(u)} />;
@@ -1624,7 +1694,7 @@ export default function Roster() {
       <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
         <Header user={user} onLogout={logout} saveStatus={saveStatus} />
         <Tabs tab={tab} setTab={setTab} />
-        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} />}
+        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
         {tab === "Settings" && <SettingsPage user={user} />}
       </div>
