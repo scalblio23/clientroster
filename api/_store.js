@@ -1,1 +1,2 @@
-export { kv as store } from "@vercel/kv";
+// re-export from _db so existing imports keep working
+export * from "./_db.js";
