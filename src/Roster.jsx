@@ -470,6 +470,22 @@ const callTypeStyle = (v) => ({
   Callback: { bg: "rgba(192,132,252,0.14)", bd: "rgba(192,132,252,0.28)", fg: "#c084fc" },
 }[v] || { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" });
 
+function BlurInput({ value, onCommit, type = "text", placeholder, style }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <input
+      type={type}
+      value={local}
+      placeholder={placeholder}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => { if (String(local) !== String(value)) onCommit(local); }}
+      onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
+      style={style}
+    />
+  );
+}
+
 function CycleBadge({ value, order, styleFor, onChange }) {
   const s = styleFor(value);
   return (
@@ -613,12 +629,12 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
       case "name": return (
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <ClientIcon color={c.color} name={c.name} size={30} />
-          <input value={c.name} onChange={(e) => updateClient(c.name, { name: e.target.value })}
+          <BlurInput value={c.name} onCommit={(v) => updateClient(c.name, { name: v })}
             style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }} />
         </div>
       );
       case "notes": return (
-        <input value={c.notes || ""} onChange={(e) => updateClient(c.name, { notes: e.target.value })}
+        <BlurInput value={c.notes || ""} onCommit={(v) => updateClient(c.name, { notes: v })}
           placeholder="Add note…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
       );
       case "daysOld": {
@@ -634,17 +650,17 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
       case "adStatus": return <CycleBadge value={c.adStatus || "Not Live"} order={AD_STATUS_ORDER} styleFor={adStatusStyle} onChange={(v) => updateClient(c.name, { adStatus: v })} />;
       case "onboarding": return <CycleBadge value={c.onboarding || "Pending"} order={ONBOARDING_ORDER} styleFor={onboardingStyle} onChange={(v) => updateClient(c.name, { onboarding: v })} />;
       case "priority": return <CycleBadge value={c.priority || "Medium"} order={CLIENT_PRIORITY_ORDER} styleFor={priorityStyle} onChange={(v) => updateClient(c.name, { priority: v })} />;
-      case "mrr": return <input type="number" value={c.mrr} onChange={(e) => updateClient(c.name, { mrr: Number(e.target.value) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
-      case "adSpend": return <input type="number" value={c.adSpend || 0} onChange={(e) => updateClient(c.name, { adSpend: Number(e.target.value) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
-      case "leads": return <input type="number" value={c.leads || 0} onChange={(e) => updateClient(c.name, { leads: Number(e.target.value) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
+      case "mrr": return <BlurInput type="number" value={c.mrr ?? 0} onCommit={(v) => updateClient(c.name, { mrr: Number(v) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
+      case "adSpend": return <BlurInput type="number" value={c.adSpend ?? 0} onCommit={(v) => updateClient(c.name, { adSpend: Number(v) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
+      case "leads": return <BlurInput type="number" value={c.leads ?? 0} onCommit={(v) => updateClient(c.name, { leads: Number(v) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
       case "cpl": {
         const cpl = (c.leads || 0) > 0 ? ((c.adSpend || 0) / c.leads).toFixed(2) : null;
         return <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>{cpl ? `$${cpl}` : "—"}</div>;
       }
-      case "startDate": return <input value={c.start} onChange={(e) => updateClient(c.name, { start: e.target.value })} style={{ ...cellInput({ fontSize: 13 }) }} />;
+      case "startDate": return <BlurInput value={c.start || ""} onCommit={(v) => updateClient(c.name, { start: v })} style={{ ...cellInput({ fontSize: 13 }) }} />;
       case "script": return (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <input value={c.script || ""} onChange={(e) => updateClient(c.name, { script: e.target.value })}
+          <BlurInput value={c.script || ""} onCommit={(v) => updateClient(c.name, { script: v })}
             placeholder="https://…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
           {c.script && (
             <a href={c.script} target="_blank" rel="noreferrer" style={{ color: C.orange, flexShrink: 0, display: "grid", placeItems: "center" }}>
@@ -654,8 +670,8 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
         </div>
       );
       case "callType": return <CycleBadge value={c.callType || "Callout"} order={CALL_TYPE_ORDER} styleFor={callTypeStyle} onChange={(v) => updateClient(c.name, { callType: v })} />;
-      case "phone": return <input value={c.phone} onChange={(e) => updateClient(c.name, { phone: e.target.value })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
-      case "email": return <input value={c.email} onChange={(e) => updateClient(c.name, { email: e.target.value })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
+      case "phone": return <BlurInput value={c.phone || ""} onCommit={(v) => updateClient(c.name, { phone: v })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
+      case "email": return <BlurInput value={c.email || ""} onCommit={(v) => updateClient(c.name, { email: v })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
       case "tasks": return <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />;
       default: return null;
     }
