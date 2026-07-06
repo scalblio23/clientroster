@@ -549,74 +549,79 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
       </button>
 
       {open && (
-        <div style={{
+        <div onClick={(e) => e.stopPropagation()} style={{
           position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
           background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 160,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 190,
         }}>
           {options.map((opt) => {
             const optColor = colors[opt] || "#9aa0a8";
             const isSelected = opt === value;
+            const editing = editingColor === opt;
             return (
-              <div key={opt} style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "6px 8px", borderRadius: 8,
-                background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
-                border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
-              }}>
-                {/* color swatch — click to edit */}
-                <div style={{ position: "relative", flexShrink: 0 }}>
-                  <button
-                    title="Edit color"
-                    onClick={(e) => { e.stopPropagation(); setEditingColor(editingColor === opt ? null : opt); }}
-                    style={{
-                      width: 14, height: 14, borderRadius: 4, background: optColor,
-                      border: "2px solid rgba(255,255,255,0.2)", cursor: "pointer", padding: 0,
-                      boxShadow: editingColor === opt ? `0 0 0 2px ${optColor}` : "none",
-                    }}
-                  />
-                  {editingColor === opt && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 1000,
-                        background: "#242428", border: "1px solid rgba(255,255,255,0.15)",
-                        borderRadius: 10, padding: 10, boxShadow: "0 6px 24px rgba(0,0,0,0.7)",
-                        display: "flex", flexDirection: "column", gap: 8, width: 160,
-                      }}
-                    >
-                      <div style={{ fontSize: 11, color: "#9aa0a8", fontWeight: 600, letterSpacing: 0.5 }}>COLOUR — {opt}</div>
-                      <input
-                        ref={colorInputRef}
-                        type="color"
-                        defaultValue={optColor}
-                        onChange={(e) => onChangeColor(field, opt, e.target.value)}
-                        style={{ width: "100%", height: 36, borderRadius: 6, border: "none", cursor: "pointer", background: "none" }}
-                      />
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 11, color: "#9aa0a8" }}>Hex</span>
-                        <input
-                          type="text"
-                          defaultValue={optColor}
-                          maxLength={7}
-                          onChange={(e) => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChangeColor(field, opt, e.target.value); }}
-                          style={{
-                            flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
-                            color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, fontFamily: "monospace",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {/* option label */}
-                <button onClick={() => { onChangeValue(opt); setOpen(false); }} style={{
-                  flex: 1, background: "none", border: "none", textAlign: "left", cursor: "pointer",
-                  color: optColor, fontSize: 13, fontWeight: 500, fontFamily: FONT, padding: 0,
+              <div key={opt}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "7px 8px", borderRadius: 8,
+                  background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
+                  border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
                 }}>
-                  {opt}
-                </button>
+                  {/* select option */}
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: optColor, flexShrink: 0 }} />
+                  <button onClick={() => { onChangeValue(opt); setOpen(false); }} style={{
+                    flex: 1, background: "none", border: "none", textAlign: "left", cursor: "pointer",
+                    color: optColor, fontSize: 13, fontWeight: 500, fontFamily: FONT, padding: 0,
+                  }}>
+                    {opt}
+                  </button>
+                  {/* color edit button */}
+                  <button
+                    onClick={() => setEditingColor(editing ? null : opt)}
+                    title="Edit colour"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5, padding: "3px 7px",
+                      background: editing ? `rgba(${hexToRgb(optColor)},0.2)` : "rgba(255,255,255,0.07)",
+                      border: `1px solid ${editing ? optColor + "55" : "rgba(255,255,255,0.1)"}`,
+                      borderRadius: 6, cursor: "pointer", fontFamily: FONT, fontSize: 11,
+                      color: editing ? optColor : "#9aa0a8", flexShrink: 0,
+                    }}
+                  >
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: optColor, display: "inline-block" }} />
+                    Edit
+                  </button>
+                </div>
+
+                {/* inline color editor */}
+                {editing && (
+                  <div style={{
+                    margin: "4px 6px 6px", padding: "10px 12px",
+                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 9, display: "flex", flexDirection: "column", gap: 8,
+                  }}>
+                    <div style={{ fontSize: 10, color: "#9aa0a8", fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase" }}>Colour for "{opt}"</div>
+                    <input
+                      type="color"
+                      defaultValue={optColor}
+                      onChange={(e) => onChangeColor(field, opt, e.target.value)}
+                      style={{ width: "100%", height: 32, borderRadius: 6, border: "none", cursor: "pointer", padding: 0, background: "none" }}
+                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 11, color: "#9aa0a8", flexShrink: 0 }}>Hex</span>
+                      <input
+                        type="text"
+                        defaultValue={optColor}
+                        maxLength={7}
+                        placeholder="#ffffff"
+                        onChange={(e) => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChangeColor(field, opt, e.target.value); }}
+                        style={{
+                          flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
+                          color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, fontFamily: "monospace", outline: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
