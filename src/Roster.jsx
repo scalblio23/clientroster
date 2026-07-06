@@ -35,23 +35,23 @@ const GLASS = {
 
 /* ---------- real client data ---------- */
 const CLIENTS = [
-  { name: "Pascal",          color: "#ff8a3d", mrr: 2500, start: "1 Nov 2025",  status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0405195248",     email: "pascal.wpservices@gmail.com",      notes: "Nothing to do for now, just need to hit 15 bookings this week" },
-  { name: "Jinesh",          color: "#a78bfa", mrr: 0,    start: "1 Nov 2025",  status: "neutral", adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "",               email: "",                                 notes: "Assign content posting this week for Owen" },
-  { name: "Imran",           color: "#34d399", mrr: 1200, start: "1 Dec 2025",  status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0405567178",     email: "imran@khanlegal.com.au",            notes: "10 bookings OR make sure all recent leads are closed" },
-  { name: "Kaniq",           color: "#f0674a", mrr: 1200, start: "1 Feb 2026",  status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0451858710",     email: "kaniq.singh@gmail.com",             notes: "" },
-  { name: "Vin",             color: "#fb923c", mrr: 0,    start: "2 Mar 2026",  status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0416832295",     email: "vin.neh.lal@gmail.com",             notes: "Follow up" },
-  { name: "Chris",           color: "#60a5fa", mrr: 0,    start: "24 Mar 2026", status: "neutral", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0427543942",     email: "chris@adx.com.au",                  notes: "" },
-  { name: "Louisa",          color: "#e879f9", mrr: 0,    start: "22 Apr 2026", status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0414083522",     email: "louisa@zippyfinancial.com.au",      notes: "" },
-  { name: "Luke",            color: "#4ade80", mrr: 0,    start: "30 May 2026", status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0411718555",     email: "luke@goalinvest.com.au",            notes: "Look at current ad account and lead list. Once done figure out how lead quality is going, have a chat with Luke see how is feeling - nurture this relationship." },
-  { name: "Ali",             color: "#fbbf24", mrr: 1200, start: "9 Jun 2026",  status: "neutral", adStatus: "Not Live", onboarding: "Pending",          priority: "Low",    phone: "0428259463",     email: "eliteglossdetailers@hotmail.com",   notes: "" },
-  { name: "Dylan",           color: "#5b9bff", mrr: 1500, start: "11 Jun 2026", status: "neutral", adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0400132725",     email: "sandfordelectrical@outlook.com",    notes: "Solar guy. The main goal next week is to book 2 calls per day minimum." },
-  { name: "Suleiman",        color: "#ff6a1f", mrr: 1000, start: "15 Jun 2026", status: "neutral", adStatus: "Live",     onboarding: "Pending",          priority: "High",   phone: "+61 432 115 549", email: "suleiman302@gmail.com",            notes: "Start calling campaign tomorrow" },
-  { name: "Christian",       color: "#38bdf8", mrr: 1500, start: "17 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 414 373 016", email: "christian@fundd.com.au",           notes: "Need to assess the ads - what is going on with them and how to adjust" },
-  { name: "Adrian",          color: "#f43f5e", mrr: 1170, start: "23 Jun 2026", status: "at risk", adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 431 414 650", email: "adrian@mojefinancial.com.au",      notes: "Need to get his ads live" },
-  { name: "Elias",           color: "#a3e635", mrr: 1250, start: "23 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 478 402 965", email: "elias@settla.com.au",              notes: "Book 2-3 calls per week with this" },
-  { name: "Michael Mfonyam", color: "#c084fc", mrr: 1000, start: "30 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+17042412097",   email: "mike_aze@yahoo.ca",                 notes: "Get his campaign live" },
-  { name: "Mohammed Ahmed",  color: "#fb7185", mrr: 1500, start: "2 Jul 2026",  status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "",               email: "",                                  notes: "Organise video shoot, go through onboarding" },
-  { name: "Brendon Hollins", color: "#fdba74", mrr: 1700, start: "3 Jul 2026",  status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "0401177729",     email: "brendon@cable-co.com.au",           notes: "Get campaign live" },
+  { name: "Pascal",          color: "#ff8a3d", mrr: 2500, start: "1 Nov 2025",  status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0405195248",      email: "pascal.wpservices@gmail.com",     notes: "Nothing to do for now, just need to hit 15 bookings this week", adSpend: 0, leads: 0 },
+  { name: "Jinesh",          color: "#a78bfa", mrr: 0,    start: "1 Nov 2025",  status: "neutral", adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "",                email: "",                                notes: "Assign content posting this week for Owen",                      adSpend: 0, leads: 0 },
+  { name: "Imran",           color: "#34d399", mrr: 1200, start: "1 Dec 2025",  status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0405567178",      email: "imran@khanlegal.com.au",           notes: "10 bookings OR make sure all recent leads are closed",           adSpend: 0, leads: 0 },
+  { name: "Kaniq",           color: "#f0674a", mrr: 1200, start: "1 Feb 2026",  status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0451858710",      email: "kaniq.singh@gmail.com",            notes: "",                                                               adSpend: 0, leads: 0 },
+  { name: "Vin",             color: "#fb923c", mrr: 0,    start: "2 Mar 2026",  status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0416832295",      email: "vin.neh.lal@gmail.com",            notes: "Follow up",                                                      adSpend: 0, leads: 0 },
+  { name: "Chris",           color: "#60a5fa", mrr: 0,    start: "24 Mar 2026", status: "neutral", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0427543942",      email: "chris@adx.com.au",                 notes: "",                                                               adSpend: 0, leads: 0 },
+  { name: "Louisa",          color: "#e879f9", mrr: 0,    start: "22 Apr 2026", status: "at risk", adStatus: "Not Live", onboarding: "Onboard Complete", priority: "Medium", phone: "0414083522",      email: "louisa@zippyfinancial.com.au",     notes: "",                                                               adSpend: 0, leads: 0 },
+  { name: "Luke",            color: "#4ade80", mrr: 0,    start: "30 May 2026", status: "good",    adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0411718555",      email: "luke@goalinvest.com.au",           notes: "Look at current ad account and lead list. Once done figure out how lead quality is going, have a chat with Luke see how is feeling - nurture this relationship.", adSpend: 0, leads: 0 },
+  { name: "Ali",             color: "#fbbf24", mrr: 1200, start: "9 Jun 2026",  status: "neutral", adStatus: "Not Live", onboarding: "Pending",          priority: "Low",    phone: "0428259463",      email: "eliteglossdetailers@hotmail.com",  notes: "",                                                               adSpend: 0, leads: 0 },
+  { name: "Dylan",           color: "#5b9bff", mrr: 1500, start: "11 Jun 2026", status: "neutral", adStatus: "Live",     onboarding: "Onboard Complete", priority: "Medium", phone: "0400132725",      email: "sandfordelectrical@outlook.com",   notes: "Solar guy. The main goal next week is to book 2 calls per day minimum.", adSpend: 0, leads: 0 },
+  { name: "Suleiman",        color: "#ff6a1f", mrr: 1000, start: "15 Jun 2026", status: "neutral", adStatus: "Live",     onboarding: "Pending",          priority: "High",   phone: "+61 432 115 549", email: "suleiman302@gmail.com",            notes: "Start calling campaign tomorrow",                                adSpend: 0, leads: 0 },
+  { name: "Christian",       color: "#38bdf8", mrr: 1500, start: "17 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 414 373 016", email: "christian@fundd.com.au",           notes: "Need to assess the ads - what is going on with them and how to adjust", adSpend: 0, leads: 0 },
+  { name: "Adrian",          color: "#f43f5e", mrr: 1170, start: "23 Jun 2026", status: "at risk", adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 431 414 650", email: "adrian@mojefinancial.com.au",      notes: "Need to get his ads live",                                       adSpend: 0, leads: 0 },
+  { name: "Elias",           color: "#a3e635", mrr: 1250, start: "23 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+61 478 402 965", email: "elias@settla.com.au",              notes: "Book 2-3 calls per week with this",                              adSpend: 0, leads: 0 },
+  { name: "Michael Mfonyam", color: "#c084fc", mrr: 1000, start: "30 Jun 2026", status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "+17042412097",    email: "mike_aze@yahoo.ca",                notes: "Get his campaign live",                                          adSpend: 0, leads: 0 },
+  { name: "Mohammed Ahmed",  color: "#fb7185", mrr: 1500, start: "2 Jul 2026",  status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "",                email: "",                                 notes: "Organise video shoot, go through onboarding",                   adSpend: 0, leads: 0 },
+  { name: "Brendon Hollins", color: "#fdba74", mrr: 1700, start: "3 Jul 2026",  status: "good",    adStatus: "Not Live", onboarding: "Pending",          priority: "Medium", phone: "0401177729",      email: "brendon@cable-co.com.au",          notes: "Get campaign live",                                              adSpend: 0, leads: 0 },
 ];
 
 const SEED_TASKS = [];
@@ -474,13 +474,13 @@ function CycleBadge({ value, order, styleFor, onChange }) {
 }
 
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
-  const cols = ["Name", "Notes", "Days old", "Client Vibe", "Ad Status", "Onboarding", "Priority", "MRR", "Start Date", "Phone", "Email", "Tasks"];
-  const grid = "195px 338px 104px 143px 143px 208px 130px 117px 156px 182px 260px 1fr";
+  const cols = ["Name", "Notes", "Days old", "Client Vibe", "Ad Status", "Onboarding", "Priority", "MRR", "Ad Spend", "Leads", "CPL", "Start Date", "Phone", "Email", "Tasks"];
+  const grid = "170px 280px 80px 120px 110px 170px 100px 90px 100px 80px 90px 120px 150px 200px 1fr";
 
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 2080 }}>
+        <div style={{ minWidth: 2200 }}>
           {/* header */}
           <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             {cols.map((h) => (
@@ -537,6 +537,31 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
                   onChange={(e) => updateClient(c.name, { mrr: Number(e.target.value) })}
                   style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }}
                 />
+                {/* ad spend */}
+                <input
+                  type="number"
+                  value={c.adSpend || 0}
+                  onChange={(e) => updateClient(c.name, { adSpend: Number(e.target.value) })}
+                  style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }}
+                />
+                {/* leads */}
+                <input
+                  type="number"
+                  value={c.leads || 0}
+                  onChange={(e) => updateClient(c.name, { leads: Number(e.target.value) })}
+                  style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }}
+                />
+                {/* cpl — computed, read-only */}
+                {(() => {
+                  const spend = c.adSpend || 0;
+                  const leads = c.leads || 0;
+                  const cpl = leads > 0 ? (spend / leads).toFixed(2) : null;
+                  return (
+                    <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>
+                      {cpl ? `$${cpl}` : "—"}
+                    </div>
+                  );
+                })()}
                 {/* start date */}
                 <input
                   value={c.start}
@@ -883,7 +908,7 @@ export default function Roster() {
                    radial-gradient(1000px 620px at 108% 112%, rgba(255,120,30,0.22), transparent 55%),
                    ${C.bg}`,
     }}>
-      <div style={{ maxWidth: 1560, margin: "0 auto", padding: "40px 28px 100px" }}>
+      <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
         <Header />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
