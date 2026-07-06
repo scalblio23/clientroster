@@ -290,7 +290,7 @@ function Header() {
 }
 
 function Tabs({ tab, setTab }) {
-  const items = ["Overview", "Clients", "Tasks"];
+  const items = ["Overview", "Clients", "Tasks", "Settings"];
   return (
     <div style={{ display: "flex", justifyContent: "center", marginTop: 34 }}>
       <div style={{
@@ -1166,6 +1166,103 @@ function AuthScreen({ onLogin }) {
   );
 }
 
+/* ---------- settings ---------- */
+function SettingsPage({ user }) {
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confPw, setConfPw] = useState("");
+  const [pwMsg, setPwMsg] = useState(null); // { ok, text }
+  const [pwLoading, setPwLoading] = useState(false);
+
+  useEffect(() => {
+    api.getUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]))
+      .finally(() => setLoadingUsers(false));
+  }, []);
+
+  const changePassword = async () => {
+    if (!curPw || !newPw || !confPw) { setPwMsg({ ok: false, text: "All fields required." }); return; }
+    if (newPw !== confPw) { setPwMsg({ ok: false, text: "New passwords don't match." }); return; }
+    if (newPw.length < 6) { setPwMsg({ ok: false, text: "New password must be at least 6 characters." }); return; }
+    setPwLoading(true); setPwMsg(null);
+    try {
+      await api.changePassword({ currentPassword: curPw, newPassword: newPw });
+      setPwMsg({ ok: true, text: "Password changed successfully." });
+      setCurPw(""); setNewPw(""); setConfPw("");
+    } catch (e) {
+      setPwMsg({ ok: false, text: e.message });
+    } finally { setPwLoading(false); }
+  };
+
+  const fieldStyle = {
+    width: "100%", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`,
+    color: C.text, borderRadius: 10, padding: "10px 14px", fontSize: 14,
+    outline: "none", fontFamily: FONT, boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ marginTop: 48, display: "grid", gap: 28, maxWidth: 780 }}>
+      {/* team members */}
+      <div style={{ ...GLASS, borderRadius: 20, padding: 28 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 20 }}>Team Members</div>
+        {loadingUsers
+          ? <div style={{ color: C.muted, fontSize: 13 }}>Loading…</div>
+          : users.length === 0
+            ? <div style={{ color: C.muted, fontSize: 13 }}>No users found.</div>
+            : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {users.map((u) => (
+                  <div key={u.username} style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    padding: "10px 14px", borderRadius: 12,
+                    background: "rgba(255,255,255,0.04)", border: `1px solid rgba(255,255,255,0.07)`,
+                  }}>
+                    <span style={{
+                      width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                      background: `linear-gradient(150deg, ${C.orange}, ${C.orangeDeep})`,
+                      display: "grid", placeItems: "center",
+                      fontSize: 14, fontWeight: 800, color: "#0a0a0a",
+                    }}>{u.name[0]}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{u.name}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>@{u.username}</div>
+                    </div>
+                    {u.username === user.username && (
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: C.orange, fontWeight: 600, letterSpacing: 1 }}>YOU</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+        }
+      </div>
+
+      {/* change password */}
+      <div style={{ ...GLASS, borderRadius: 20, padding: 28 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 20 }}>Change Password</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 380 }}>
+          <input type="password" placeholder="Current password" value={curPw} onChange={(e) => setCurPw(e.target.value)} style={fieldStyle} />
+          <input type="password" placeholder="New password" value={newPw} onChange={(e) => setNewPw(e.target.value)} style={fieldStyle} />
+          <input type="password" placeholder="Confirm new password" value={confPw} onChange={(e) => setConfPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && changePassword()} style={fieldStyle} />
+          {pwMsg && (
+            <div style={{ fontSize: 13, color: pwMsg.ok ? "#34d399" : C.red, fontWeight: 500 }}>{pwMsg.text}</div>
+          )}
+          <button onClick={changePassword} disabled={pwLoading} style={{
+            background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`,
+            color: "#0a0a0a", border: "none", borderRadius: 10,
+            padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+            opacity: pwLoading ? 0.6 : 1, alignSelf: "flex-start",
+          }}>{pwLoading ? "Saving…" : "Update Password"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- root ---------- */
 export default function Roster() {
   const [user, setUser] = useState(() => api.hasToken() ? { name: "", username: "" } : null);
@@ -1221,6 +1318,7 @@ export default function Roster() {
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
+        {tab === "Settings" && <SettingsPage user={user} />}
       </div>
     </div>
   );

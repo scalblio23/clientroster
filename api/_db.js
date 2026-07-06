@@ -1,17 +1,18 @@
-import { put, list, download } from "@vercel/blob";
+import { put, list } from "@vercel/blob";
 
 async function readJson(key) {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (!blobs.length) return null;
-    const res = await download(blobs[0].url);
+    const res = await fetch(blobs[0].url + "?t=" + Date.now());
+    if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
 }
 
 async function writeJson(key, data) {
   await put(key, JSON.stringify(data), {
-    access: "private",
+    access: "public",
     addRandomSuffix: false,
     contentType: "application/json",
   });
@@ -26,6 +27,11 @@ export async function setUser(username, data) {
   const users = (await readJson("roster/users.json")) ?? {};
   users[username] = data;
   await writeJson("roster/users.json", users);
+}
+
+export async function listUsers() {
+  const users = (await readJson("roster/users.json")) ?? {};
+  return Object.values(users).map((u) => ({ name: u.name, username: u.username }));
 }
 
 export async function getToken(token) {

@@ -31,6 +31,9 @@ export const api = {
   getTasks:   ()       => req("GET",  "/tasks"),
   putTasks:   (data)   => req("PUT",  "/tasks", data),
 
+  getUsers:       ()     => req("GET",  "/users"),
+  changePassword: (data) => req("POST", "/changepassword", data),
+
   saveToken: (token) => sessionStorage.setItem("roster_token", token),
   clearToken: ()     => sessionStorage.removeItem("roster_token"),
   hasToken: ()       => !!sessionStorage.getItem("roster_token"),
