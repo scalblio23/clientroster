@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.59</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.60</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1168,6 +1168,57 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
   );
 }
 
+/* ---------- simple chip picker (no color editing) ---------- */
+function ChipPicker({ value, options, colors, labelMap, onChange, placeholder = "Select…" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const color = (value && colors[value]) || "#9aa0a8";
+  const s = value ? chipStyle(color) : { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" };
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
+      <button onClick={() => setOpen((o) => !o)} style={{
+        display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+        background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
+        borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
+        whiteSpace: "nowrap", fontFamily: FONT,
+      }}>
+        {value && <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />}
+        {value ? (labelMap?.[value] || value) : placeholder}
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
+          background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 160,
+        }}>
+          {options.map((opt) => {
+            const optColor = colors[opt] || "#9aa0a8";
+            const isSelected = opt === value;
+            return (
+              <div key={opt} onClick={() => { onChange(opt); setOpen(false); }} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "7px 10px", borderRadius: 8, cursor: "pointer",
+                background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
+                border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: 99, background: optColor, flexShrink: 0 }} />
+                <span style={{ color: optColor, fontSize: 13, fontWeight: 500 }}>{labelMap?.[opt] || opt}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- task table cells ---------- */
 function PriorityChip({ value, onChange }) {
   const p = PRIORITY[value] || PRIORITY.Medium;
@@ -1422,62 +1473,20 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                       <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
                     </div>
                     {/* status */}
-                    <div style={{ position: "relative", display: "inline-flex" }}>
-                      {(() => {
-                        const col = TASK_STATUS_COLORS[t.status] || TASK_STATUS_COLORS["To Do"];
-                        return (
-                          <>
-                            <span style={{
-                              display: "inline-flex", alignItems: "center", gap: 6,
-                              background: `rgba(${hexToRgb(col)},0.14)`,
-                              border: `1px solid ${col}44`,
-                              color: col,
-                              borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
-                              pointerEvents: "none",
-                            }}>
-                              <span style={{ width: 6, height: 6, borderRadius: 99, background: col }} />
-                              {t.status || "To Do"}
-                            </span>
-                            <select
-                              value={t.status || "To Do"}
-                              onChange={(e) => updateTask(t.id, { status: e.target.value })}
-                              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}
-                            >
-                              {TASK_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                          </>
-                        );
-                      })()}
-                    </div>
+                    <ChipPicker
+                      value={t.status || "To Do"}
+                      options={TASK_STATUS}
+                      colors={TASK_STATUS_COLORS}
+                      onChange={(v) => updateTask(t.id, { status: v })}
+                    />
                     {/* person */}
-                    <div style={{ position: "relative", display: "inline-flex" }}>
-                      {(() => {
-                        const col = TEAM_COLORS[t.person] || null;
-                        return (
-                          <>
-                            <span style={{
-                              display: "inline-flex", alignItems: "center", gap: 6,
-                              background: col ? `rgba(${hexToRgb(col)},0.14)` : "rgba(255,255,255,0.05)",
-                              border: `1px solid ${col ? col + "44" : "rgba(255,255,255,0.10)"}`,
-                              color: col || C.muted,
-                              borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
-                              pointerEvents: "none",
-                            }}>
-                              {col && <span style={{ width: 6, height: 6, borderRadius: 99, background: col }} />}
-                              {t.person || "—"}
-                            </span>
-                            <select
-                              value={t.person || ""}
-                              onChange={(e) => updateTask(t.id, { person: e.target.value })}
-                              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}
-                            >
-                              <option value="">—</option>
-                              {TEAM.map((p) => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                          </>
-                        );
-                      })()}
-                    </div>
+                    <ChipPicker
+                      value={t.person || ""}
+                      options={TEAM}
+                      colors={TEAM_COLORS}
+                      placeholder="—"
+                      onChange={(v) => updateTask(t.id, { person: v })}
+                    />
                     {/* priority */}
                     <div><PriorityChip value={t.priority} onChange={(p) => updateTask(t.id, { priority: p })} /></div>
                     {/* due */}
