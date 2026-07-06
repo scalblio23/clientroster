@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.55</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.56</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -963,13 +963,30 @@ function suggestViewName(sortKey, sortDir) {
 
 function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption }) {
   const [view, setView] = useState("table");
-  const [sortKey, setSortKey] = useState(null);
-  const [sortDir, setSortDir] = useState("asc");
   const [savedViews, setSavedViews] = useState(() => {
     try { return JSON.parse(localStorage.getItem("roster_views") || "[]"); } catch { return []; }
   });
+  const [defaultViewName, setDefaultViewName] = useState(() => localStorage.getItem("roster_default_view") || null);
   const [savingView, setSavingView] = useState(false);
   const [viewDraft, setViewDraft] = useState("");
+
+  // Apply default view on first mount
+  const [sortKey, setSortKey] = useState(() => {
+    try {
+      const def = localStorage.getItem("roster_default_view");
+      if (!def) return null;
+      const views = JSON.parse(localStorage.getItem("roster_views") || "[]");
+      return views.find((v) => v.name === def)?.sortKey ?? null;
+    } catch { return null; }
+  });
+  const [sortDir, setSortDir] = useState(() => {
+    try {
+      const def = localStorage.getItem("roster_default_view");
+      if (!def) return "asc";
+      const views = JSON.parse(localStorage.getItem("roster_views") || "[]");
+      return views.find((v) => v.name === def)?.sortDir ?? "asc";
+    } catch { return "asc"; }
+  });
 
   const saveView = () => {
     const name = viewDraft.trim() || suggestViewName(sortKey, sortDir);
@@ -984,6 +1001,21 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
     const next = savedViews.filter((v) => v.name !== name);
     setSavedViews(next);
     localStorage.setItem("roster_views", JSON.stringify(next));
+    if (defaultViewName === name) {
+      setDefaultViewName(null);
+      localStorage.removeItem("roster_default_view");
+    }
+  };
+
+  const setDefault = (name) => {
+    if (defaultViewName === name) {
+      // toggle off — revert to no default
+      setDefaultViewName(null);
+      localStorage.removeItem("roster_default_view");
+    } else {
+      setDefaultViewName(name);
+      localStorage.setItem("roster_default_view", name);
+    }
   };
 
   const applyView = (v) => { setSortKey(v.sortKey); setSortDir(v.sortDir); };
@@ -1034,33 +1066,51 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
               borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
               cursor: "pointer", fontFamily: FONT,
             }}
-          >Default</button>
+          >
+            {!defaultViewName && <span title="This is the default view" style={{ fontSize: 11 }}>★</span>}
+            Default
+          </button>
 
           {savedViews.map((v) => {
             const active = v.name === activeViewName;
+            const isDefault = v.name === defaultViewName;
+            const bg = active ? C.orangeSoft : "rgba(255,255,255,0.05)";
+            const bd = active ? C.orangeSoftBorder : "rgba(255,255,255,0.10)";
+            const fg = active ? C.orangeBright : C.muted;
             return (
-              <div key={v.name} style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+              <div key={v.name} style={{ display: "inline-flex", alignItems: "center", gap: 0 }}>
+                {/* view label */}
                 <button
                   onClick={() => applyView(v)}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 5,
-                    background: active ? C.orangeSoft : "rgba(255,255,255,0.05)",
-                    border: `1px solid ${active ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
-                    color: active ? C.orangeBright : C.muted,
+                    background: bg, border: `1px solid ${bd}`, color: fg,
                     borderRadius: "999px 0 0 999px", padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
                     cursor: "pointer", fontFamily: FONT,
                   }}
-                >{v.name}</button>
+                >
+                  {isDefault && <span title="Default view" style={{ fontSize: 11 }}>★</span>}
+                  {v.name}
+                </button>
+                {/* set-as-default star button */}
+                <button
+                  onClick={() => setDefault(v.name)}
+                  title={isDefault ? "Remove as default" : "Set as default view"}
+                  style={{
+                    display: "grid", placeItems: "center",
+                    background: bg, border: `1px solid ${bd}`, borderLeft: "none",
+                    color: isDefault ? C.orange : fg,
+                    padding: "5px 7px", cursor: "pointer", fontSize: 12,
+                  }}
+                >☆</button>
+                {/* delete button */}
                 <button
                   onClick={() => deleteView(v.name)}
                   aria-label="Delete view"
                   style={{
                     display: "grid", placeItems: "center",
-                    background: active ? C.orangeSoft : "rgba(255,255,255,0.05)",
-                    border: `1px solid ${active ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
-                    borderLeft: "none",
-                    color: active ? C.orangeBright : C.muted,
-                    borderRadius: "0 999px 999px 0", padding: "5px 8px",
+                    background: bg, border: `1px solid ${bd}`, borderLeft: "none",
+                    color: fg, borderRadius: "0 999px 999px 0", padding: "5px 8px",
                     cursor: "pointer",
                   }}
                 ><X size={11} /></button>
