@@ -122,56 +122,18 @@ function StatBox({ dir, label, value }) {
   );
 }
 
-function StatusChip({ status }) {
-  const s = STATUS[status] || STATUS.neutral;
+function StatusChip({ status, color }) {
+  const col = color || STATUS[status]?.color || "#9aa0a8";
+  const label = VIBE_LABELS[status] || status;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500,
-      color: s.color, background: s.color + "1f", border: `1px solid ${s.color}33`,
+      color: col, background: col + "1f", border: `1px solid ${col}33`,
       borderRadius: 999, padding: "4px 10px",
     }}>
-      <span style={{ width: 7, height: 7, borderRadius: 99, background: s.color }} />
-      {s.label}
+      <span style={{ width: 7, height: 7, borderRadius: 99, background: col }} />
+      {label}
     </span>
-  );
-}
-
-function StatusPicker({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-  return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <button onClick={() => setOpen((o) => !o)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-        <StatusChip status={value} />
-      </button>
-      {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
-          background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 130,
-        }}>
-          {Object.entries(STATUS).map(([key, s]) => (
-            <button key={key} onClick={() => { onChange(key); setOpen(false); }} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
-              background: value === key ? s.color + "18" : "transparent",
-              border: value === key ? `1px solid ${s.color}33` : "1px solid transparent",
-              borderRadius: 8, cursor: "pointer", textAlign: "left",
-              color: s.color, fontSize: 13, fontWeight: 500, fontFamily: FONT,
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: 99, background: s.color, flexShrink: 0 }} />
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -489,11 +451,15 @@ const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
 const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
 
 const DEFAULT_COLORS = {
+  vibe:       { "good": "#ff8a3d", "neutral": "#9aa0a8", "at risk": "#f0674a" },
   adStatus:   { "Live": "#34d399", "Not Live": "#9aa0a8" },
   onboarding: { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
   priority:   { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
   callType:   { "Callout": "#fbbf24", "Booking": "#34d399", "Transfer": "#5b9bff", "Callback": "#c084fc" },
 };
+
+const VIBE_OPTIONS = ["good", "neutral", "at risk"];
+const VIBE_LABELS  = { good: "Good", neutral: "Neutral", "at risk": "At risk" };
 
 function hexToRgb(hex) {
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
@@ -520,7 +486,7 @@ function BlurInput({ value, onCommit, type = "text", placeholder, style }) {
   );
 }
 
-function SelectPicker({ field, value, options, colors, onChangeValue, onChangeColor }) {
+function SelectPicker({ field, value, options, colors, onChangeValue, onChangeColor, labelMap }) {
   const [open, setOpen] = useState(false);
   const [editingColor, setEditingColor] = useState(null);
   const ref = useRef(null);
@@ -545,7 +511,7 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
         whiteSpace: "nowrap", fontFamily: FONT,
       }}>
         <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />
-        {value}
+        {labelMap ? labelMap[value] || value : value}
       </button>
 
       {open && (
@@ -573,7 +539,7 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
                     flex: 1, background: "none", border: "none", textAlign: "left", cursor: "pointer",
                     color: optColor, fontSize: 13, fontWeight: 500, fontFamily: FONT, padding: 0,
                   }}>
-                    {opt}
+                    {labelMap ? labelMap[opt] || opt : opt}
                   </button>
                   {/* color edit button */}
                   <button
@@ -774,7 +740,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
         const d = daysOld(c.start); const col = daysColor(d);
         return <div style={{ fontSize: 14, fontWeight: 700, color: col }}>{d ?? "—"}<span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>d</span></div>;
       }
-      case "vibe": return <StatusPicker value={c.status} onChange={(v) => updateClient(c.name, { status: v })} />;
+      case "vibe": return <SelectPicker field="vibe" value={c.status || "neutral"} options={VIBE_OPTIONS} colors={enumColors.vibe} onChangeValue={(v) => updateClient(c.name, { status: v })} onChangeColor={updateEnumColor} labelMap={VIBE_LABELS} />;
       case "adStatus": return <SelectPicker field="adStatus" value={c.adStatus || "Not Live"} options={AD_STATUS_ORDER} colors={enumColors.adStatus} onChangeValue={(v) => updateClient(c.name, { adStatus: v })} onChangeColor={updateEnumColor} />;
       case "onboarding": return <SelectPicker field="onboarding" value={c.onboarding || "Pending"} options={ONBOARDING_ORDER} colors={enumColors.onboarding} onChangeValue={(v) => updateClient(c.name, { onboarding: v })} onChangeColor={updateEnumColor} />;
       case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
