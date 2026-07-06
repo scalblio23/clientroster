@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.50</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.51</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -304,7 +304,7 @@ function Header({ saveStatus }) {
 }
 
 function Tabs({ tab, setTab }) {
-  const items = ["Overview", "Clients", "Tasks", "Settings"];
+  const items = ["Clients", "Tasks", "Settings"];
   return (
     <div style={{ display: "flex", justifyContent: "center", marginTop: 34 }}>
       <div style={{
@@ -1473,7 +1473,7 @@ function SettingsPage({ user }) {
 /* ---------- root ---------- */
 export default function Roster() {
   const [user, setUser] = useState(() => api.hasToken() ? { name: "", username: "" } : null);
-  const [tab, setTab] = useState("Overview");
+  const [tab, setTab] = useState("Clients");
   const [clients, setClients] = useState(CLIENTS);
   const [tasks, setTasks]     = useState(SEED_TASKS);
   const [ready, setReady]     = useState(false);
@@ -1624,7 +1624,6 @@ export default function Roster() {
       <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
         <Header user={user} onLogout={logout} saveStatus={saveStatus} />
         <Tabs tab={tab} setTab={setTab} />
-        {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
         {tab === "Settings" && <SettingsPage user={user} />}
