@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.57</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.58</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1418,28 +1418,33 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                       <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
                     </div>
                     {/* person */}
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {TEAM.map((name) => {
-                        const active = t.person === name;
-                        const col = TEAM_COLORS[name];
+                    <div style={{ position: "relative", display: "inline-flex" }}>
+                      {(() => {
+                        const col = TEAM_COLORS[t.person] || null;
                         return (
-                          <button
-                            key={name}
-                            onClick={() => updateTask(t.id, { person: active ? "" : name })}
-                            style={{
-                              display: "inline-flex", alignItems: "center", gap: 5,
-                              background: active ? `rgba(${hexToRgb(col)},0.18)` : "rgba(255,255,255,0.05)",
-                              border: `1px solid ${active ? col + "55" : "rgba(255,255,255,0.10)"}`,
-                              color: active ? col : C.muted,
-                              borderRadius: 999, padding: "3px 9px", fontSize: 12, fontWeight: 500,
-                              cursor: "pointer", fontFamily: FONT,
-                            }}
-                          >
-                            {active && <span style={{ width: 5, height: 5, borderRadius: 99, background: col }} />}
-                            {name}
-                          </button>
+                          <>
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 6,
+                              background: col ? `rgba(${hexToRgb(col)},0.14)` : "rgba(255,255,255,0.05)",
+                              border: `1px solid ${col ? col + "44" : "rgba(255,255,255,0.10)"}`,
+                              color: col || C.muted,
+                              borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
+                              pointerEvents: "none",
+                            }}>
+                              {col && <span style={{ width: 6, height: 6, borderRadius: 99, background: col }} />}
+                              {t.person || "—"}
+                            </span>
+                            <select
+                              value={t.person || ""}
+                              onChange={(e) => updateTask(t.id, { person: e.target.value })}
+                              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}
+                            >
+                              <option value="">—</option>
+                              {TEAM.map((p) => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </>
                         );
-                      })}
+                      })()}
                     </div>
                     {/* priority */}
                     <div><PriorityChip value={t.priority} onChange={(p) => updateTask(t.id, { priority: p })} /></div>
