@@ -272,7 +272,7 @@ function Header() {
         }} />
         <div style={{ lineHeight: 1.2 }}>
           <span style={{ fontSize: 19, fontWeight: 600, color: C.text }}>Roster</span>
-          <div style={{ fontSize: 10, color: C.faint, fontWeight: 500, letterSpacing: 0.5 }}>v1.45</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.45</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
