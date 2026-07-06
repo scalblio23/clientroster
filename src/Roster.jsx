@@ -272,7 +272,7 @@ function Header() {
         }} />
         <div style={{ lineHeight: 1.2 }}>
           <span style={{ fontSize: 19, fontWeight: 600, color: C.text }}>Roster</span>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.46</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.47</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1492,37 +1492,31 @@ export default function Roster() {
   const pendingTaskChanges   = useRef([]);
 
   const flushClients = useCallback(() => {
+    clientSaveTimer.current = null;
     const patches = pendingClientPatches.current;
     const changes = pendingClientChanges.current;
     pendingClientPatches.current = {};
     pendingClientChanges.current = [];
     const names = Object.keys(patches);
-    if (names.length === 0) return;
+    if (!names.length) return;
     names.forEach((name, idx) => {
       api.patchClient({ name, patch: patches[name], changes: idx === 0 ? changes : [] })
         .catch((e) => console.error("patchClient failed:", e?.message));
     });
   }, []);
 
-  // Flush any unsaved changes before the tab/window closes
-  useEffect(() => {
-    const onUnload = () => {
-      if (clientSaveTimer.current) { clearTimeout(clientSaveTimer.current); flushClients(); }
-    };
-    window.addEventListener("beforeunload", onUnload);
-    return () => window.removeEventListener("beforeunload", onUnload);
-  }, [flushClients]);
-
   const flushTasks = useCallback(() => {
+    taskSaveTimer.current = null;
     const changes = pendingTaskChanges.current;
     pendingTaskChanges.current = [];
     api.putTasks({ tasks: tasksRef.current, changes });
   }, []);
 
-  const scheduleClientSave = useCallback((changeEntry) => {
-    if (changeEntry) pendingClientChanges.current = [...pendingClientChanges.current, changeEntry];
-    if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
-    clientSaveTimer.current = setTimeout(flushClients, 800);
+  // Flush any unsaved changes before the tab/window closes
+  useEffect(() => {
+    const onUnload = () => { if (clientSaveTimer.current) { clearTimeout(clientSaveTimer.current); flushClients(); } };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
   }, [flushClients]);
 
   const scheduleTaskSave = useCallback((changeEntry) => {
@@ -1534,20 +1528,18 @@ export default function Roster() {
   const setAndSaveTasks = (fn, changeEntry) => setTasks((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; scheduleTaskSave(changeEntry || null); return next; });
 
   const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes" };
+
+  // No side effects inside setState — use clientsRef for old values
   const updateClient = (name, patch) => {
-    setClients((prev) => {
-      const old = prev.find((c) => c.name === name);
-      const next = prev.map((c) => (c.name === name ? { ...c, ...patch } : c));
-      pendingClientPatches.current = {
-        ...pendingClientPatches.current,
-        [name]: { ...(pendingClientPatches.current[name] || {}), ...patch },
-      };
-      Object.entries(patch)
-        .filter(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])
-        .forEach(([f, v]) => scheduleClientSave({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${String(old?.[f] ?? "") || "—"}" to "${String(v ?? "") || "—"}"` }));
-      if (!Object.entries(patch).some(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])) scheduleClientSave();
-      return next;
-    });
+    const old = clientsRef.current.find((c) => c.name === name);
+    setClients((prev) => prev.map((c) => (c.name === name ? { ...c, ...patch } : c)));
+    const changes = Object.entries(patch)
+      .filter(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])
+      .map(([f, v]) => ({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${String(old?.[f] ?? "") || "—"}" to "${String(v ?? "") || "—"}"` }));
+    pendingClientPatches.current = { ...pendingClientPatches.current, [name]: { ...(pendingClientPatches.current[name] || {}), ...patch } };
+    if (changes.length) pendingClientChanges.current = [...pendingClientChanges.current, ...changes];
+    if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
+    clientSaveTimer.current = setTimeout(flushClients, 500);
   };
   const addTask = (client, text) => {
     const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "" };
