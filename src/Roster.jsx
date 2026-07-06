@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.60</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.61</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1373,11 +1373,110 @@ function taskSortVal(key, t) {
   }
 }
 
+function AddTaskModal({ clients, onAdd, onClose }) {
+  const [text, setText] = useState("");
+  const [client, setClient] = useState(clients[0]?.name || "");
+  const [person, setPerson] = useState("");
+  const [status, setStatus] = useState("To Do");
+  const [priority, setPriority] = useState("Medium");
+  const [due, setDue] = useState("");
+
+  const commit = () => {
+    const t = text.trim();
+    if (!t || !client) return;
+    onAdd(client, t, person, status, priority, due);
+    onClose();
+  };
+
+  const fieldLabel = (label) => (
+    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", color: C.muted, marginBottom: 6 }}>{label}</div>
+  );
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9000,
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)",
+      display: "grid", placeItems: "center", padding: 24,
+    }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        ...GLASS, borderRadius: 22, padding: 32, width: "100%", maxWidth: 480,
+        display: "flex", flexDirection: "column", gap: 22,
+      }}>
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: C.text }}>New task</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, display: "grid", placeItems: "center" }}><X size={18} /></button>
+        </div>
+
+        {/* task name */}
+        <div>
+          {fieldLabel("Task")}
+          <input
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && commit()}
+            placeholder="What needs to be done?"
+            style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, color: C.text, borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: FONT }}
+          />
+        </div>
+
+        {/* client */}
+        <div>
+          {fieldLabel("Client")}
+          <select value={client} onChange={(e) => setClient(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, color: C.text, borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: FONT, cursor: "pointer" }}>
+            {clients.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+        </div>
+
+        {/* row: status + person */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            {fieldLabel("Status")}
+            <ChipPicker value={status} options={TASK_STATUS} colors={TASK_STATUS_COLORS} onChange={setStatus} />
+          </div>
+          <div>
+            {fieldLabel("Person")}
+            <ChipPicker value={person} options={TEAM} colors={TEAM_COLORS} placeholder="—" onChange={setPerson} />
+          </div>
+        </div>
+
+        {/* row: priority + due */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            {fieldLabel("Priority")}
+            <ChipPicker
+              value={priority}
+              options={PRI_ORDER}
+              colors={{ High: PRIORITY.High.color, Medium: PRIORITY.Medium.color, Low: PRIORITY.Low.color }}
+              onChange={setPriority}
+            />
+          </div>
+          <div>
+            {fieldLabel("Due date")}
+            <input
+              type="date"
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, color: due ? C.text : C.muted, borderRadius: 10, padding: "9px 14px", fontSize: 13, outline: "none", fontFamily: FONT, cursor: "pointer" }}
+            />
+          </div>
+        </div>
+
+        {/* submit */}
+        <button onClick={commit} style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+          background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`, color: "#0a0a0a",
+          border: "none", borderRadius: 12, padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 4,
+        }}><Plus size={16} /> Add task</button>
+      </div>
+    </div>
+  );
+}
+
 function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   const [depsFor, setDepsFor] = useState(null);
-  const [newClient, setNewClient] = useState(clients[0]?.name || "");
-  const [newText, setNewText] = useState("");
-  const [newPerson, setNewPerson] = useState("");
+  const [addingTask, setAddingTask] = useState(false);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
@@ -1401,11 +1500,6 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   const cols = TASK_COLS;
   const grid = TASK_GRID;
 
-  const commitNew = () => {
-    const t = newText.trim();
-    if (t && newClient) { addTask(newClient, t, newPerson); setNewText(""); }
-  };
-
   return (
     <>
       {/* hero */}
@@ -1420,7 +1514,16 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
 
       {/* table */}
       <div style={{ marginTop: 56 }}>
-        <SectionHead title="All tasks" right={`${tasks.length} open`} />
+        <SectionHead title="All tasks" right={
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 13, color: C.muted }}>{tasks.length} open</span>
+            <button onClick={() => setAddingTask(true)} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`, color: "#0a0a0a",
+              border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+            }}><Plus size={14} /> New task</button>
+          </div>
+        } />
         <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 1260 }}>
@@ -1505,29 +1608,16 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
               })}
             </div>
           </div>
-          {/* add task bar */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 22px", borderTop: "1px solid rgba(255,255,255,0.08)", flexWrap: "wrap" }}>
-            <select value={newClient} onChange={(e) => setNewClient(e.target.value)} style={selectStyle}>
-              {clients.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-            </select>
-            <select value={newPerson} onChange={(e) => setNewPerson(e.target.value)} style={selectStyle}>
-              <option value="">Person…</option>
-              {TEAM.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <input
-              value={newText} onChange={(e) => setNewText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && commitNew()}
-              placeholder="Add a task…"
-              style={{ flex: 1, minWidth: 180, background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, color: C.text, borderRadius: 10, padding: "9px 14px", fontSize: 13.5, outline: "none", fontFamily: FONT }}
-            />
-            <button onClick={commitNew} style={{
-              display: "inline-flex", alignItems: "center", gap: 7,
-              background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`, color: "#0a0a0a",
-              border: "none", borderRadius: 10, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer",
-            }}><Plus size={15} /> Add task</button>
-          </div>
         </div>
       </div>
+
+      {addingTask && (
+        <AddTaskModal
+          clients={clients}
+          onAdd={(client, text, person, status, priority, due) => addTask(client, text, person, status, priority, due)}
+          onClose={() => setAddingTask(false)}
+        />
+      )}
 
       {activeTask && (
         <DepsModal
@@ -1925,8 +2015,8 @@ export default function Roster() {
     if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
     clientSaveTimer.current = setTimeout(flushClients, 500);
   };
-  const addTask = (client, text, person = "") => {
-    const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "", person, status: "To Do" };
+  const addTask = (client, text, person = "", status = "To Do", priority = "Medium", due = "") => {
+    const newTask = { id: uid(), client, text, priority, due, deps: [], loom: "", person, status };
     setAndSaveTasks((ts) => [...ts, newTask], { action: "task_added", detail: `Added task for ${client}: "${text}"` });
   };
   const removeTask = (id) => {
