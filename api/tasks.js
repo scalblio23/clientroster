@@ -1,4 +1,4 @@
-import { getToken, getTasks, saveTasks, appendLog } from "./_db.js";
+import { getToken, getTasks, saveTasks, appendLogs } from "./_db.js";
 
 const TASK_TRACKED = {
   text:     { label: "Task name" },
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     const oldTasks = await getTasks();
     await saveTasks(req.body);
     const changes = diffTasks(oldTasks, req.body);
-    await Promise.all(changes.map((c) => appendLog({ user: username, ...c })));
+    await appendLogs(changes.map((c) => ({ user: username, ...c })));
     return res.json({ ok: true });
   }
   res.status(405).end();

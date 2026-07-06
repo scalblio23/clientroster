@@ -60,9 +60,12 @@ export async function getTasks() { return (await readJson("roster/tasks.json")) 
 export async function saveTasks(data) { await writeJson("roster/tasks.json", data); }
 
 export async function getLogs() { return (await readJson("roster/logs.json")) ?? []; }
-export async function appendLog(entry) {
+export async function appendLogs(entries) {
+  if (!entries.length) return;
+  const ts = Date.now();
   const logs = (await readJson("roster/logs.json")) ?? [];
-  logs.unshift({ ...entry, ts: Date.now() });
+  for (const e of entries) logs.unshift({ ...e, ts });
   if (logs.length > 200) logs.length = 200;
   await writeJson("roster/logs.json", logs);
 }
+export async function appendLog(entry) { return appendLogs([entry]); }

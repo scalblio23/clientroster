@@ -1,4 +1,4 @@
-import { getToken, getClients, saveClients, appendLog } from "./_db.js";
+import { getToken, getClients, saveClients, appendLogs } from "./_db.js";
 
 const TRACKED = {
   name:       { label: "Name" },
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     const oldClients = await getClients();
     await saveClients(req.body);
     const changes = diffClients(oldClients, req.body);
-    await Promise.all(changes.map((c) => appendLog({ user: username, ...c })));
+    await appendLogs(changes.map((c) => ({ user: username, ...c })));
     return res.json({ ok: true });
   }
   res.status(405).end();
