@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.56</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.57</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1296,19 +1296,23 @@ const selectStyle = {
 const TASK_COLS = [
   { key: "text",     label: "Task" },
   { key: "client",   label: "Client" },
+  { key: "person",   label: "Person" },
   { key: "priority", label: "Priority" },
   { key: "due",      label: "Due date" },
   { key: "deps",     label: "Dependencies" },
   { key: "loom",     label: "Loom" },
   { key: "_del",     label: "" },
 ];
-const TASK_GRID = "2.1fr 1.3fr 1fr 1.4fr 1.5fr 1.5fr 0.4fr";
+const TASK_GRID = "2fr 1.2fr 1fr 1fr 1.3fr 1.4fr 1.4fr 0.4fr";
+const TEAM = ["Owen", "Henry", "Cody"];
+const TEAM_COLORS = { Owen: "#5b9bff", Henry: "#ff8a3d", Cody: "#34d399" };
 
 function taskSortVal(key, t) {
   switch (key) {
     case "text":     return t.text?.toLowerCase() ?? "";
     case "client":   return t.client?.toLowerCase() ?? "";
     case "priority": return ["High","Medium","Low"].indexOf(t.priority ?? "Medium");
+    case "person":   return t.person?.toLowerCase() ?? "";
     case "due":      return t.due ? new Date(t.due).getTime() : Infinity;
     default:         return "";
   }
@@ -1318,13 +1322,14 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   const [depsFor, setDepsFor] = useState(null);
   const [newClient, setNewClient] = useState(clients[0]?.name || "");
   const [newText, setNewText] = useState("");
+  const [newPerson, setNewPerson] = useState("");
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
 
   const handleHeaderClick = (key) => {
-    if (key === "deps" || key === "loom" || key === "_del") return;
+    if (key === "deps" || key === "loom" || key === "_del" || key === "person") return;
     if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
   };
@@ -1343,7 +1348,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
 
   const commitNew = () => {
     const t = newText.trim();
-    if (t && newClient) { addTask(newClient, t); setNewText(""); }
+    if (t && newClient) { addTask(newClient, t, newPerson); setNewText(""); }
   };
 
   return (
@@ -1372,14 +1377,14 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                     style={{
                       fontSize: 11, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase",
                       color: sortKey === col.key ? C.orange : C.muted,
-                      cursor: col.key !== "deps" && col.key !== "loom" && col.key !== "_del" ? "pointer" : "default",
+                      cursor: col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && col.key !== "person" ? "pointer" : "default",
                       userSelect: "none", display: "inline-flex", alignItems: "center",
                       borderBottom: sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
                       paddingBottom: 2,
                     }}
                   >
                     {col.label}
-                    {col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && (
+                    {col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && col.key !== "person" && (
                       <SortIcon dir={sortKey === col.key ? sortDir : null} />
                     )}
                   </span>
@@ -1412,6 +1417,30 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                       </select>
                       <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
                     </div>
+                    {/* person */}
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {TEAM.map((name) => {
+                        const active = t.person === name;
+                        const col = TEAM_COLORS[name];
+                        return (
+                          <button
+                            key={name}
+                            onClick={() => updateTask(t.id, { person: active ? "" : name })}
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: 5,
+                              background: active ? `rgba(${hexToRgb(col)},0.18)` : "rgba(255,255,255,0.05)",
+                              border: `1px solid ${active ? col + "55" : "rgba(255,255,255,0.10)"}`,
+                              color: active ? col : C.muted,
+                              borderRadius: 999, padding: "3px 9px", fontSize: 12, fontWeight: 500,
+                              cursor: "pointer", fontFamily: FONT,
+                            }}
+                          >
+                            {active && <span style={{ width: 5, height: 5, borderRadius: 99, background: col }} />}
+                            {name}
+                          </button>
+                        );
+                      })}
+                    </div>
                     {/* priority */}
                     <div><PriorityChip value={t.priority} onChange={(p) => updateTask(t.id, { priority: p })} /></div>
                     {/* due */}
@@ -1434,6 +1463,10 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
           <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 22px", borderTop: "1px solid rgba(255,255,255,0.08)", flexWrap: "wrap" }}>
             <select value={newClient} onChange={(e) => setNewClient(e.target.value)} style={selectStyle}>
               {clients.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+            </select>
+            <select value={newPerson} onChange={(e) => setNewPerson(e.target.value)} style={selectStyle}>
+              <option value="">Person…</option>
+              {TEAM.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
             <input
               value={newText} onChange={(e) => setNewText(e.target.value)}
@@ -1846,8 +1879,8 @@ export default function Roster() {
     if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
     clientSaveTimer.current = setTimeout(flushClients, 500);
   };
-  const addTask = (client, text) => {
-    const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "" };
+  const addTask = (client, text, person = "") => {
+    const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "", person };
     setAndSaveTasks((ts) => [...ts, newTask], { action: "task_added", detail: `Added task for ${client}: "${text}"` });
   };
   const removeTask = (id) => {
