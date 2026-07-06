@@ -1,15 +1,13 @@
-import { put, list } from "@vercel/blob";
+import { put, list, get } from "@vercel/blob";
 
 async function readJson(key) {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (!blobs.length) return null;
-    const token = process.env.BLOB_READ_WRITE_TOKEN;
-    const res = await fetch(blobs[0].url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) return null;
-    return await res.json();
+    const result = await get(blobs[0].url, { access: "private" });
+    if (!result?.stream) return null;
+    const text = await new Response(result.stream).text();
+    return JSON.parse(text);
   } catch (e) {
     console.error("readJson error:", key, e?.message);
     return null;
