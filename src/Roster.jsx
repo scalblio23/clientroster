@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.58</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.59</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1296,6 +1296,7 @@ const selectStyle = {
 const TASK_COLS = [
   { key: "text",     label: "Task" },
   { key: "client",   label: "Client" },
+  { key: "status",   label: "Status" },
   { key: "person",   label: "Person" },
   { key: "priority", label: "Priority" },
   { key: "due",      label: "Due date" },
@@ -1303,15 +1304,18 @@ const TASK_COLS = [
   { key: "loom",     label: "Loom" },
   { key: "_del",     label: "" },
 ];
-const TASK_GRID = "2fr 1.2fr 1fr 1fr 1.3fr 1.4fr 1.4fr 0.4fr";
+const TASK_GRID = "1.8fr 1.1fr 1fr 1fr 1fr 1.2fr 1.3fr 1.3fr 0.4fr";
 const TEAM = ["Owen", "Henry", "Cody"];
 const TEAM_COLORS = { Owen: "#5b9bff", Henry: "#ff8a3d", Cody: "#34d399" };
+const TASK_STATUS = ["To Do", "In Progress", "Bump", "Done"];
+const TASK_STATUS_COLORS = { "To Do": "#9aa0a8", "In Progress": "#5b9bff", "Bump": "#f0674a", "Done": "#34d399" };
 
 function taskSortVal(key, t) {
   switch (key) {
     case "text":     return t.text?.toLowerCase() ?? "";
     case "client":   return t.client?.toLowerCase() ?? "";
     case "priority": return ["High","Medium","Low"].indexOf(t.priority ?? "Medium");
+    case "status":   return TASK_STATUS.indexOf(t.status ?? "To Do");
     case "person":   return t.person?.toLowerCase() ?? "";
     case "due":      return t.due ? new Date(t.due).getTime() : Infinity;
     default:         return "";
@@ -1329,7 +1333,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
 
   const handleHeaderClick = (key) => {
-    if (key === "deps" || key === "loom" || key === "_del" || key === "person") return;
+    if (key === "deps" || key === "loom" || key === "_del") return;
     if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
   };
@@ -1377,14 +1381,14 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                     style={{
                       fontSize: 11, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase",
                       color: sortKey === col.key ? C.orange : C.muted,
-                      cursor: col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && col.key !== "person" ? "pointer" : "default",
+                      cursor: col.key !== "deps" && col.key !== "loom" && col.key !== "_del" ? "pointer" : "default",
                       userSelect: "none", display: "inline-flex", alignItems: "center",
                       borderBottom: sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
                       paddingBottom: 2,
                     }}
                   >
                     {col.label}
-                    {col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && col.key !== "person" && (
+                    {col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && (
                       <SortIcon dir={sortKey === col.key ? sortDir : null} />
                     )}
                   </span>
@@ -1416,6 +1420,34 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
                         {clients.map((cl) => <option key={cl.name} value={cl.name}>{cl.name}</option>)}
                       </select>
                       <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
+                    </div>
+                    {/* status */}
+                    <div style={{ position: "relative", display: "inline-flex" }}>
+                      {(() => {
+                        const col = TASK_STATUS_COLORS[t.status] || TASK_STATUS_COLORS["To Do"];
+                        return (
+                          <>
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 6,
+                              background: `rgba(${hexToRgb(col)},0.14)`,
+                              border: `1px solid ${col}44`,
+                              color: col,
+                              borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
+                              pointerEvents: "none",
+                            }}>
+                              <span style={{ width: 6, height: 6, borderRadius: 99, background: col }} />
+                              {t.status || "To Do"}
+                            </span>
+                            <select
+                              value={t.status || "To Do"}
+                              onChange={(e) => updateTask(t.id, { status: e.target.value })}
+                              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}
+                            >
+                              {TASK_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </>
+                        );
+                      })()}
                     </div>
                     {/* person */}
                     <div style={{ position: "relative", display: "inline-flex" }}>
@@ -1885,7 +1917,7 @@ export default function Roster() {
     clientSaveTimer.current = setTimeout(flushClients, 500);
   };
   const addTask = (client, text, person = "") => {
-    const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "", person };
+    const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "", person, status: "To Do" };
     setAndSaveTasks((ts) => [...ts, newTask], { action: "task_added", detail: `Added task for ${client}: "${text}"` });
   };
   const removeTask = (id) => {
