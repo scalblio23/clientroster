@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.54</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.55</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -691,8 +691,13 @@ function clientSortVal(key, c) {
   }
 }
 
+const NAME_COL_W = 206;
+const ROW_H      = 54;
+const HDR_H      = 42;
+
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir }) {
-  const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
+  // colOrder excludes "name" — it lives in the fixed left pane
+  const [colOrder, setColOrder] = useState(COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key));
   const [dropIdx, setDropIdx] = useState(null);
   const draggingKey = useRef(null);
   const didDrag = useRef(false);
@@ -717,7 +722,6 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
       })
     : clients;
 
-  // Mouse-based drag — avoids all HTML5 drag-and-drop quirks
   const startDrag = useCallback((e, key) => {
     e.preventDefault();
     draggingKey.current = key;
@@ -762,7 +766,6 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
     window.addEventListener("mouseup", onUp);
   }, [colOrder]);
 
-  // track last mouse X for onUp
   useEffect(() => {
     const track = (e) => { window._lastMouseX = e.clientX; };
     window.addEventListener("mousemove", track);
@@ -850,81 +853,98 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
     }
   };
 
+  const nameHdrStyle = {
+    fontSize: 11, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase",
+    color: sortKey === "name" ? C.orange : C.muted,
+    borderBottom: sortKey === "name" ? `2px solid ${C.orange}55` : "2px solid transparent",
+    paddingBottom: 2, display: "inline-flex", alignItems: "center",
+    cursor: "pointer", userSelect: "none", transition: "color .15s, border-color .15s",
+  };
+
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
-      <div className="glass-scroll" style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 2500 }}>
-          {/* header — drag to reorder, click to sort */}
-          <div
-            ref={headerRef}
-            style={{ position: "relative", display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
-          >
-            {cols.map((col, i) => (
-              <div
-                key={col.key}
-                onMouseDown={(e) => startDrag(e, col.key)}
-                onClick={() => handleHeaderClick(col.key)}
-                style={{
-                  position: col.key === "name" ? "sticky" : "relative",
-                  left: col.key === "name" ? 32 : "auto",
-                  zIndex: col.key === "name" ? 4 : "auto",
-                  background: col.key === "name" ? "#0e0e10" : "transparent",
-                  boxShadow: col.key === "name" ? "4px 0 12px rgba(0,0,0,0.5)" : "none",
-                  fontSize: 11, letterSpacing: 1, fontWeight: 600,
-                  color: sortKey === col.key ? C.orange : C.muted,
-                  textTransform: "uppercase", cursor: "grab", userSelect: "none",
-                  borderBottom: sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
-                  paddingBottom: 2, transition: "color .15s, border-color .15s",
-                  display: "flex", alignItems: "center",
-                  opacity: draggingKey.current === col.key ? 0.4 : 1,
-                }}
-              >
-                {/* drop indicator line — appears before this column */}
-                {dropIdx === i && draggingKey.current !== col.key && (
-                  <div style={{
-                    position: "absolute", left: -8, top: -4, bottom: -4, width: 2,
-                    background: C.orange, borderRadius: 2,
-                    boxShadow: `0 0 6px ${C.orange}`,
-                    pointerEvents: "none",
-                  }} />
-                )}
-                {col.label}
-                {col.key !== "tasks" && col.key !== "notes" && (
-                  <SortIcon dir={sortKey === col.key ? sortDir : null} />
-                )}
-              </div>
-            ))}
-            {/* drop indicator at the very end */}
-            {dropIdx === cols.length && (
-              <div style={{
-                position: "absolute", right: 24, top: 4, bottom: 4, width: 2,
-                background: C.orange, borderRadius: 2,
-                boxShadow: `0 0 6px ${C.orange}`,
-                pointerEvents: "none",
-              }} />
-            )}
+      <div style={{ display: "flex" }}>
+
+        {/* ── Fixed name column ── */}
+        <div style={{
+          width: NAME_COL_W, flexShrink: 0,
+          borderRight: "1px solid rgba(255,255,255,0.10)",
+          boxShadow: "4px 0 16px rgba(0,0,0,0.35)",
+          zIndex: 2, position: "relative",
+        }}>
+          {/* header */}
+          <div style={{ height: HDR_H, display: "flex", alignItems: "center", padding: "0 16px 0 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <span style={nameHdrStyle} onClick={() => handleHeaderClick("name")}>
+              Name <SortIcon dir={sortKey === "name" ? sortDir : null} />
+            </span>
           </div>
           {/* rows */}
-          {sortedClients.map((c, i) => {
-            const cTasks = tasks.filter((t) => t.client === c.name);
-            return (
-              <div key={c.name} style={{
-                display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 12,
-                padding: "12px 32px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
-              }}>
-                {cols.map((col) => (
-                  <div key={col.key} style={col.key === "name" ? {
-                    position: "sticky", left: 32, zIndex: 2,
-                    background: "#0e0e10",
-                    boxShadow: "4px 0 12px rgba(0,0,0,0.5)",
-                  } : undefined}>
-                    {renderCell(col.key, c, cTasks)}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+          {sortedClients.map((c, i) => (
+            <div key={c.name} style={{
+              height: ROW_H, display: "flex", alignItems: "center",
+              padding: "0 16px 0 20px",
+              borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
+            }}>
+              {renderCell("name", c, [])}
+            </div>
+          ))}
         </div>
+
+        {/* ── Scrollable columns ── */}
+        <div className="glass-scroll" style={{ overflowX: "auto", flex: 1 }}>
+          <div style={{ minWidth: 2300 }}>
+            {/* header */}
+            <div
+              ref={headerRef}
+              style={{ position: "relative", display: "grid", gridTemplateColumns: grid, gap: 12, padding: `0 32px`, height: HDR_H, alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              {cols.map((col, i) => (
+                <div
+                  key={col.key}
+                  onMouseDown={(e) => startDrag(e, col.key)}
+                  onClick={() => handleHeaderClick(col.key)}
+                  style={{
+                    position: "relative",
+                    fontSize: 11, letterSpacing: 1, fontWeight: 600,
+                    color: sortKey === col.key ? C.orange : C.muted,
+                    textTransform: "uppercase", cursor: "grab", userSelect: "none",
+                    borderBottom: sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
+                    paddingBottom: 2, transition: "color .15s, border-color .15s",
+                    display: "flex", alignItems: "center",
+                    opacity: draggingKey.current === col.key ? 0.4 : 1,
+                  }}
+                >
+                  {dropIdx === i && draggingKey.current !== col.key && (
+                    <div style={{ position: "absolute", left: -8, top: -4, bottom: -4, width: 2, background: C.orange, borderRadius: 2, boxShadow: `0 0 6px ${C.orange}`, pointerEvents: "none" }} />
+                  )}
+                  {col.label}
+                  {col.key !== "tasks" && col.key !== "notes" && (
+                    <SortIcon dir={sortKey === col.key ? sortDir : null} />
+                  )}
+                </div>
+              ))}
+              {dropIdx === cols.length && (
+                <div style={{ position: "absolute", right: 24, top: 4, bottom: 4, width: 2, background: C.orange, borderRadius: 2, boxShadow: `0 0 6px ${C.orange}`, pointerEvents: "none" }} />
+              )}
+            </div>
+            {/* rows */}
+            {sortedClients.map((c, i) => {
+              const cTasks = tasks.filter((t) => t.client === c.name);
+              return (
+                <div key={c.name} style={{
+                  display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 12,
+                  padding: "0 32px", height: ROW_H,
+                  borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
+                }}>
+                  {cols.map((col) => (
+                    <div key={col.key}>{renderCell(col.key, c, cTasks)}</div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
     </div>
   );
