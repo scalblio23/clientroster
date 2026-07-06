@@ -447,6 +447,7 @@ const cellInput = (extra = {}) => ({
 const AD_STATUS_ORDER = ["Live", "Not Live"];
 const ONBOARDING_ORDER = ["Onboard Complete", "Pending"];
 const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
+const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
 
 const adStatusStyle = (v) => v === "Live"
   ? { bg: "rgba(52,211,153,0.15)", bd: "rgba(52,211,153,0.3)", fg: "#34d399" }
@@ -460,6 +461,13 @@ const priorityStyle = (v) => ({
   High:   { bg: "rgba(240,103,74,0.14)",  bd: "rgba(240,103,74,0.28)",  fg: "#f0674a" },
   Medium: { bg: "rgba(255,138,61,0.14)",  bd: "rgba(255,138,61,0.28)",  fg: "#ff8a3d" },
   Low:    { bg: "rgba(127,138,163,0.14)", bd: "rgba(127,138,163,0.28)", fg: "#7f8aa3" },
+}[v] || { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" });
+
+const callTypeStyle = (v) => ({
+  Callout:  { bg: "rgba(251,191,36,0.14)",  bd: "rgba(251,191,36,0.28)",  fg: "#fbbf24" },
+  Booking:  { bg: "rgba(52,211,153,0.14)",  bd: "rgba(52,211,153,0.28)",  fg: "#34d399" },
+  Transfer: { bg: "rgba(91,155,255,0.14)",  bd: "rgba(91,155,255,0.28)",  fg: "#5b9bff" },
+  Callback: { bg: "rgba(192,132,252,0.14)", bd: "rgba(192,132,252,0.28)", fg: "#c084fc" },
 }[v] || { bg: "rgba(255,255,255,0.06)", bd: "rgba(255,255,255,0.12)", fg: "#9aa0a8" });
 
 function CycleBadge({ value, order, styleFor, onChange }) {
@@ -487,6 +495,8 @@ const COL_DEFS = [
   { key: "leads",      label: "Leads",       width: "80px"  },
   { key: "cpl",        label: "CPL",         width: "90px"  },
   { key: "startDate",  label: "Start Date",  width: "120px" },
+  { key: "script",     label: "Script",      width: "160px" },
+  { key: "callType",   label: "Call Type",   width: "120px" },
   { key: "phone",      label: "Phone",       width: "150px" },
   { key: "email",      label: "Email",       width: "200px" },
   { key: "tasks",      label: "Tasks",       width: "1fr"   },
@@ -510,6 +520,8 @@ function clientSortVal(key, c) {
     case "onboarding": return c.onboarding ?? "";
     case "priority":   return ["High","Medium","Low"].indexOf(c.priority);
     case "startDate":  return c.start ?? "";
+    case "script":     return c.script ?? "";
+    case "callType":   return CALL_TYPE_ORDER.indexOf(c.callType ?? "Callout");
     case "phone":      return c.phone ?? "";
     case "email":      return c.email ?? "";
     default:           return "";
@@ -599,6 +611,18 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
         return <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>{cpl ? `$${cpl}` : "—"}</div>;
       }
       case "startDate": return <input value={c.start} onChange={(e) => updateClient(c.name, { start: e.target.value })} style={{ ...cellInput({ fontSize: 13 }) }} />;
+      case "script": return (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <input value={c.script || ""} onChange={(e) => updateClient(c.name, { script: e.target.value })}
+            placeholder="https://…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
+          {c.script && (
+            <a href={c.script} target="_blank" rel="noreferrer" style={{ color: C.orange, flexShrink: 0, display: "grid", placeItems: "center" }}>
+              <ExternalLink size={13} />
+            </a>
+          )}
+        </div>
+      );
+      case "callType": return <CycleBadge value={c.callType || "Callout"} order={CALL_TYPE_ORDER} styleFor={callTypeStyle} onChange={(v) => updateClient(c.name, { callType: v })} />;
       case "phone": return <input value={c.phone} onChange={(e) => updateClient(c.name, { phone: e.target.value })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
       case "email": return <input value={c.email} onChange={(e) => updateClient(c.name, { email: e.target.value })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
       case "tasks": return <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />;
