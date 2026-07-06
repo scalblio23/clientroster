@@ -492,13 +492,54 @@ const COL_DEFS = [
   { key: "tasks",      label: "Tasks",       width: "1fr"   },
 ];
 
+function SortIcon({ dir }) {
+  if (!dir) return <span style={{ opacity: 0.25, fontSize: 10, marginLeft: 3 }}>↕</span>;
+  return <span style={{ fontSize: 10, marginLeft: 3, color: C.orange }}>{dir === "asc" ? "↑" : "↓"}</span>;
+}
+
+function clientSortVal(key, c) {
+  switch (key) {
+    case "name":       return c.name?.toLowerCase() ?? "";
+    case "mrr":        return c.mrr ?? 0;
+    case "adSpend":    return c.adSpend ?? 0;
+    case "leads":      return c.leads ?? 0;
+    case "cpl":        return (c.leads > 0 ? (c.adSpend / c.leads) : 0);
+    case "daysOld":    return daysOld(c.start) ?? 0;
+    case "vibe":       return ["good","neutral","at risk"].indexOf(c.status);
+    case "adStatus":   return c.adStatus ?? "";
+    case "onboarding": return c.onboarding ?? "";
+    case "priority":   return ["High","Medium","Low"].indexOf(c.priority);
+    case "startDate":  return c.start ?? "";
+    case "phone":      return c.phone ?? "";
+    case "email":      return c.email ?? "";
+    default:           return "";
+  }
+}
+
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
   const [dragOver, setDragOver] = useState(null);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
   const dragKey = useRef(null);
 
   const cols = colOrder.map((k) => COL_DEFS.find((d) => d.key === k));
   const grid = cols.map((c) => c.width).join(" ");
+
+  const handleHeaderClick = (key) => {
+    if (key === "tasks" || key === "notes") return;
+    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const sortedClients = sortKey
+    ? [...clients].sort((a, b) => {
+        const av = clientSortVal(sortKey, a);
+        const bv = clientSortVal(sortKey, b);
+        const cmp = typeof av === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === "asc" ? cmp : -cmp;
+      })
+    : clients;
 
   const onDragStart = (key) => { dragKey.current = key; };
   const onDragEnter = (key) => { if (key !== dragKey.current) setDragOver(key); };
@@ -561,7 +602,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 2200 }}>
-          {/* header — drag to reorder */}
+          {/* header — drag to reorder, click to sort */}
           <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             {cols.map((col) => (
               <div
@@ -572,17 +613,25 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => onDrop(col.key)}
                 onDragEnd={() => setDragOver(null)}
+                onClick={() => handleHeaderClick(col.key)}
                 style={{
-                  fontSize: 11, letterSpacing: 1, fontWeight: 600, color: dragOver === col.key ? C.orange : C.muted,
+                  fontSize: 11, letterSpacing: 1, fontWeight: 600,
+                  color: sortKey === col.key ? C.orange : dragOver === col.key ? C.orange : C.muted,
                   textTransform: "uppercase", cursor: "grab", userSelect: "none",
-                  borderBottom: dragOver === col.key ? `2px solid ${C.orange}` : "2px solid transparent",
+                  borderBottom: dragOver === col.key ? `2px solid ${C.orange}` : sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
                   paddingBottom: 2, transition: "color .15s, border-color .15s",
+                  display: "flex", alignItems: "center",
                 }}
-              >{col.label}</div>
+              >
+                {col.label}
+                {col.key !== "tasks" && col.key !== "notes" && (
+                  <SortIcon dir={sortKey === col.key ? sortDir : null} />
+                )}
+              </div>
             ))}
           </div>
           {/* rows */}
-          {clients.map((c, i) => {
+          {sortedClients.map((c, i) => {
             const cTasks = tasks.filter((t) => t.client === c.name);
             return (
               <div key={c.name} style={{
@@ -777,15 +826,53 @@ const selectStyle = {
   colorScheme: "dark", cursor: "pointer",
 };
 
+const TASK_COLS = [
+  { key: "text",     label: "Task" },
+  { key: "client",   label: "Client" },
+  { key: "priority", label: "Priority" },
+  { key: "due",      label: "Due date" },
+  { key: "deps",     label: "Dependencies" },
+  { key: "loom",     label: "Loom" },
+  { key: "_del",     label: "" },
+];
+const TASK_GRID = "2.1fr 1.3fr 1fr 1.4fr 1.5fr 1.5fr 0.4fr";
+
+function taskSortVal(key, t) {
+  switch (key) {
+    case "text":     return t.text?.toLowerCase() ?? "";
+    case "client":   return t.client?.toLowerCase() ?? "";
+    case "priority": return ["High","Medium","Low"].indexOf(t.priority ?? "Medium");
+    case "due":      return t.due ? new Date(t.due).getTime() : Infinity;
+    default:         return "";
+  }
+}
+
 function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   const [depsFor, setDepsFor] = useState(null);
   const [newClient, setNewClient] = useState(clients[0]?.name || "");
   const [newText, setNewText] = useState("");
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
 
-  const cols = ["Task", "Client", "Priority", "Due date", "Dependencies", "Loom", ""];
-  const grid = "2.1fr 1.3fr 1fr 1.4fr 1.5fr 1.5fr 0.4fr";
+  const handleHeaderClick = (key) => {
+    if (key === "deps" || key === "loom" || key === "_del") return;
+    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const sortedTasks = sortKey
+    ? [...tasks].sort((a, b) => {
+        const av = taskSortVal(sortKey, a);
+        const bv = taskSortVal(sortKey, b);
+        const cmp = typeof av === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === "asc" ? cmp : -cmp;
+      })
+    : tasks;
+
+  const cols = TASK_COLS;
+  const grid = TASK_GRID;
 
   const commitNew = () => {
     const t = newText.trim();
@@ -811,11 +898,27 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 1260 }}>
               <div style={{ display: "grid", gridTemplateColumns: grid, padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                {cols.map((h, idx) => (
-                  <span key={idx} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase" }}>{h}</span>
+                {cols.map((col) => (
+                  <span
+                    key={col.key}
+                    onClick={() => handleHeaderClick(col.key)}
+                    style={{
+                      fontSize: 11, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase",
+                      color: sortKey === col.key ? C.orange : C.muted,
+                      cursor: col.key !== "deps" && col.key !== "loom" && col.key !== "_del" ? "pointer" : "default",
+                      userSelect: "none", display: "inline-flex", alignItems: "center",
+                      borderBottom: sortKey === col.key ? `2px solid ${C.orange}55` : "2px solid transparent",
+                      paddingBottom: 2,
+                    }}
+                  >
+                    {col.label}
+                    {col.key !== "deps" && col.key !== "loom" && col.key !== "_del" && (
+                      <SortIcon dir={sortKey === col.key ? sortDir : null} />
+                    )}
+                  </span>
                 ))}
               </div>
-              {tasks.map((t, i) => {
+              {sortedTasks.map((t, i) => {
                 const c = byName[t.client];
                 return (
                   <div key={t.id} style={{
