@@ -26,8 +26,9 @@ export const api = {
   login:  (data) => req("POST", "/login", data),
   logout: ()     => req("POST", "/logout"),
 
-  getClients: ()        => req("GET",  "/clients"),
-  putClients: (body)    => req("PUT",  "/clients", body),
+  getClients:   ()       => req("GET",   "/clients"),
+  patchClient:  (body)   => req("PATCH", "/clients", body),
+  putClients:   (body)   => req("PUT",   "/clients", body),
   getTasks:   ()        => req("GET",  "/tasks"),
   putTasks:   (body)    => req("PUT",  "/tasks", body),
 

@@ -1,52 +1,5 @@
 import { getToken, getClients, saveClients, appendLogs } from "./_db.js";
 
-const TRACKED = {
-  name:       { label: "Name" },
-  mrr:        { label: "MRR",        fmt: (v) => `$${v ?? 0}` },
-  adSpend:    { label: "Ad Spend",   fmt: (v) => `$${v ?? 0}` },
-  leads:      { label: "Leads" },
-  status:     { label: "Client Vibe" },
-  adStatus:   { label: "Ad Status" },
-  onboarding: { label: "Onboarding" },
-  priority:   { label: "Priority" },
-  callType:   { label: "Call Type" },
-  start:      { label: "Start Date" },
-  phone:      { label: "Phone" },
-  email:      { label: "Email" },
-  script:     { label: "Script" },
-  notes:      { label: "Notes",      truncate: true },
-};
-
-function fmt(field, val) {
-  const f = TRACKED[field]?.fmt;
-  const v = f ? f(val) : String(val ?? "—");
-  if (TRACKED[field]?.truncate && v.length > 40) return v.slice(0, 40) + "…";
-  return v || "—";
-}
-
-function diffClients(oldList, newList) {
-  const changes = [];
-  const oldMap = Object.fromEntries(oldList.map((c) => [c.name, c]));
-  const newMap = Object.fromEntries(newList.map((c) => [c.name, c]));
-
-  for (const nc of newList) {
-    const oc = oldMap[nc.name];
-    if (!oc) { changes.push({ action: "client_added", detail: `Added client ${nc.name}` }); continue; }
-    for (const field of Object.keys(TRACKED)) {
-      if (String(oc[field] ?? "") !== String(nc[field] ?? "")) {
-        changes.push({
-          action: "client_change",
-          detail: `Changed ${nc.name}: ${TRACKED[field].label} from ${fmt(field, oc[field])} to ${fmt(field, nc[field])}`,
-        });
-      }
-    }
-  }
-  for (const oc of oldList) {
-    if (!newMap[oc.name]) changes.push({ action: "client_removed", detail: `Removed client ${oc.name}` });
-  }
-  return changes;
-}
-
 async function auth(req, res) {
   const token = req.headers["x-token"];
   if (!token || !await getToken(token)) { res.status(401).json({ error: "Unauthorised" }); return null; }
@@ -57,6 +10,25 @@ export default async function handler(req, res) {
   const username = await auth(req, res);
   if (!username) return;
   if (req.method === "GET") return res.json(await getClients());
+
+  // PATCH: merge a single client's changed fields into the server copy
+  if (req.method === "PATCH") {
+    try {
+      const { name, patch, changes } = req.body;
+      const current = await getClients();
+      const idx = current.findIndex((c) => c.name === name);
+      if (idx !== -1) {
+        current[idx] = { ...current[idx], ...patch };
+      }
+      await saveClients(current);
+      if (changes?.length) await appendLogs(changes.map((c) => ({ user: username, ...c })));
+    } catch (e) {
+      console.error("clients PATCH error:", e?.message);
+    }
+    return res.json({ ok: true });
+  }
+
+  // PUT: full replace (used for add/remove client, reorder)
   if (req.method === "PUT") {
     try {
       const { clients, changes } = req.body;
@@ -67,5 +39,6 @@ export default async function handler(req, res) {
     }
     return res.json({ ok: true });
   }
+
   res.status(405).end();
 }
