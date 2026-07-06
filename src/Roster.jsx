@@ -1469,6 +1469,17 @@ export default function Roster() {
       .catch(() => setReady(true));
   }, [user?.username]);
 
+  /* poll for remote changes every 20 seconds — skip if we have a pending local save */
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(() => {
+      if (clientSaveTimer.current || taskSaveTimer.current) return;
+      api.getClients().then((c) => { if (c.length) setClients(c); }).catch(() => {});
+      api.getTasks().then((t) => { if (t.length) setTasks(t); }).catch(() => {});
+    }, 20000);
+    return () => clearInterval(id);
+  }, [user?.username]);
+
   const clientsRef = useRef(clients);
   const tasksRef   = useRef(tasks);
   useEffect(() => { clientsRef.current = clients; }, [clients]);
