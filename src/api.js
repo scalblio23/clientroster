@@ -37,6 +37,7 @@ export const api = {
 
   getUsers:       ()     => req("GET",  "/users"),
   getLogs:        ()     => req("GET",  "/logs"),
+  getDebug:       ()     => req("GET",  "/debug"),
   changePassword: (data) => req("POST", "/changepassword", data),
 
   saveToken: (token) => sessionStorage.setItem("roster_token", token),

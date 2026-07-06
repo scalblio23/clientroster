@@ -261,7 +261,9 @@ function ClientCard({ c, tasks = [], onAdd, onRemove }) {
 }
 
 /* ---------- shell ---------- */
-function Header() {
+function Header({ saveStatus }) {
+  const dot = saveStatus === "saving" ? C.orange : saveStatus === "saved" ? "#34d399" : saveStatus === "error" ? C.red : "transparent";
+  const label = saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save failed" : "";
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -271,8 +273,16 @@ function Header() {
           boxShadow: `0 4px 14px ${C.orange}55`,
         }} />
         <div style={{ lineHeight: 1.2 }}>
-          <span style={{ fontSize: 19, fontWeight: 600, color: C.text }}>Roster</span>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.47</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 19, fontWeight: 600, color: C.text }}>Roster</span>
+            {label && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: dot, fontWeight: 500 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 99, background: dot }} />
+                {label}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.48</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1304,6 +1314,8 @@ function SettingsPage({ user }) {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [logs, setLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [debugData, setDebugData] = useState(null);
+  const [loadingDebug, setLoadingDebug] = useState(false);
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
@@ -1403,6 +1415,22 @@ function SettingsPage({ user }) {
         </div>
       </div>
 
+      {/* debug */}
+      <div style={{ ...GLASS, borderRadius: 20, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Blob Debug</div>
+          <button onClick={() => { setLoadingDebug(true); api.getDebug().then(setDebugData).catch((e) => setDebugData({ error: e.message })).finally(() => setLoadingDebug(false)); }}
+            style={{ background: "rgba(255,255,255,0.07)", border: `1px solid ${C.cardBorder}`, color: C.muted, borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>
+            {loadingDebug ? "Checking…" : "Check Blob"}
+          </button>
+        </div>
+        {debugData && (
+          <pre style={{ fontSize: 11, color: C.muted, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all", margin: 0 }}>
+            {JSON.stringify(debugData, null, 2)}
+          </pre>
+        )}
+      </div>
+
       {/* activity log */}
       <div style={{ ...GLASS, borderRadius: 20, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -1450,6 +1478,8 @@ export default function Roster() {
   const [tasks, setTasks]     = useState(SEED_TASKS);
   const [ready, setReady]     = useState(false);
   const [enumColors, setEnumColors] = useState(() => ({ ...DEFAULT_COLORS }));
+  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
+  const saveStatusTimer = useRef(null);
 
   /* load shared data once logged in */
   useEffect(() => {
@@ -1491,6 +1521,14 @@ export default function Roster() {
   const pendingClientPatches = useRef({});
   const pendingTaskChanges   = useRef([]);
 
+  const showSaveStatus = useCallback((status) => {
+    setSaveStatus(status);
+    if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+    if (status === "saved" || status === "error") {
+      saveStatusTimer.current = setTimeout(() => setSaveStatus(null), 3000);
+    }
+  }, []);
+
   const flushClients = useCallback(() => {
     clientSaveTimer.current = null;
     const patches = pendingClientPatches.current;
@@ -1499,11 +1537,13 @@ export default function Roster() {
     pendingClientChanges.current = [];
     const names = Object.keys(patches);
     if (!names.length) return;
-    names.forEach((name, idx) => {
+    showSaveStatus("saving");
+    Promise.all(names.map((name, idx) =>
       api.patchClient({ name, patch: patches[name], changes: idx === 0 ? changes : [] })
-        .catch((e) => console.error("patchClient failed:", e?.message));
-    });
-  }, []);
+    ))
+      .then(() => showSaveStatus("saved"))
+      .catch((e) => { console.error("patchClient failed:", e?.message); showSaveStatus("error"); });
+  }, [showSaveStatus]);
 
   const flushTasks = useCallback(() => {
     taskSaveTimer.current = null;
@@ -1582,7 +1622,7 @@ export default function Roster() {
                    ${C.bg}`,
     }}>
       <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
-        <Header user={user} onLogout={logout} />
+        <Header user={user} onLogout={logout} saveStatus={saveStatus} />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} />}
