@@ -20,6 +20,7 @@ async function writeJson(key, data) {
   await put(key, JSON.stringify(data), {
     access: "private",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "application/json",
   });
 }
