@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.61</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.62</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -304,7 +304,7 @@ function Header({ saveStatus }) {
 }
 
 function Tabs({ tab, setTab }) {
-  const items = ["Clients", "Tasks", "Settings"];
+  const items = ["Clients", "Tasks", "Call Schedule", "Settings"];
   return (
     <div style={{ display: "flex", justifyContent: "center", marginTop: 34 }}>
       <div style={{
@@ -1634,6 +1634,185 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
 }
 
 
+/* ---------- call schedule ---------- */
+const SCHED_GRID = "52px 110px 130px 1.2fr 1.4fr 2fr 44px";
+
+function timeAddMins(hhmm, mins) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = h * 60 + m + mins;
+  const rh = Math.floor(total / 60) % 24;
+  const rm = total % 60;
+  return `${String(rh).padStart(2, "0")}:${String(rm).padStart(2, "0")}`;
+}
+
+function fmtTime(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h < 12 ? "am" : "pm";
+  const hh = h % 12 || 12;
+  return `${hh}:${String(m).padStart(2, "0")}${ampm}`;
+}
+
+function CallSchedulePage({ clients, schedule, setSchedule }) {
+  const [dayStart, setDayStart] = useState(() => {
+    try { return localStorage.getItem("roster_sched_start") || "09:00"; } catch { return "09:00"; }
+  });
+
+  const saveDayStart = (v) => {
+    setDayStart(v);
+    try { localStorage.setItem("roster_sched_start", v); } catch {}
+  };
+
+  const addRow = () => {
+    setSchedule((s) => [...s, { id: uid(), blockDuration: 15, client: clients[0]?.name || "", kpi: "", notes: "" }]);
+  };
+
+  const updateRow = (id, patch) => setSchedule((s) => s.map((r) => r.id === id ? { ...r, ...patch } : r));
+  const removeRow = (id) => setSchedule((s) => s.filter((r) => r.id !== id));
+
+  // compute cascading start times
+  const rows = schedule.map((r, i) => {
+    let start = dayStart;
+    for (let j = 0; j < i; j++) start = timeAddMins(start, Number(schedule[j].blockDuration) || 0);
+    return { ...r, startTime: start };
+  });
+
+  const totalMins = schedule.reduce((acc, r) => acc + (Number(r.blockDuration) || 0), 0);
+  const endTime = totalMins > 0 ? timeAddMins(dayStart, totalMins) : null;
+
+  const hdrStyle = { fontSize: 11, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", color: C.muted };
+  const cellBase = { background: "transparent", border: "none", outline: "none", color: C.text, fontFamily: FONT, fontSize: 13.5 };
+
+  return (
+    <>
+      {/* hero */}
+      <div style={{ textAlign: "center", marginTop: 40 }}>
+        <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>CALL SCHEDULE · SCALBL</div>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", marginTop: 14 }}>
+          <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{schedule.length}</span>
+          <span style={{ fontSize: 34, fontWeight: 700, color: C.faint, marginLeft: 12 }}>sessions</span>
+        </div>
+        {endTime && (
+          <div style={{ marginTop: 12, fontSize: 13.5, color: C.muted }}>
+            {fmtTime(dayStart)} → {fmtTime(endTime)} · {totalMins} mins total
+          </div>
+        )}
+      </div>
+
+      {/* table */}
+      <div style={{ marginTop: 56 }}>
+        <SectionHead title="Call Schedule" right={
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Day start</span>
+              <input
+                type="time"
+                value={dayStart}
+                onChange={(e) => saveDayStart(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, color: C.text, borderRadius: 8, padding: "5px 10px", fontSize: 13, outline: "none", fontFamily: FONT, cursor: "pointer" }}
+              />
+            </div>
+            <button onClick={addRow} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`, color: "#0a0a0a",
+              border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+            }}><Plus size={14} /> Add session</button>
+          </div>
+        } />
+
+        <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 860 }}>
+              {/* header */}
+              <div style={{ display: "grid", gridTemplateColumns: SCHED_GRID, padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)", gap: 12, alignItems: "center" }}>
+                <span style={hdrStyle}>#</span>
+                <span style={hdrStyle}>Start Time</span>
+                <span style={hdrStyle}>Block (mins)</span>
+                <span style={hdrStyle}>Client</span>
+                <span style={hdrStyle}>KPI</span>
+                <span style={hdrStyle}>Notes</span>
+                <span />
+              </div>
+
+              {rows.length === 0 && (
+                <div style={{ padding: "40px 22px", textAlign: "center", color: C.faint, fontSize: 14 }}>
+                  No sessions yet — add one above.
+                </div>
+              )}
+
+              {rows.map((r, i) => {
+                const cl = clients.find((c) => c.name === r.client);
+                return (
+                  <div key={r.id} style={{
+                    display: "grid", gridTemplateColumns: SCHED_GRID, alignItems: "center", gap: 12,
+                    padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
+                  }}>
+                    {/* session # */}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.orange }}>{i + 1}</span>
+
+                    {/* start time — calculated, read-only */}
+                    <span style={{
+                      fontSize: 14, fontWeight: 600, color: C.text,
+                      background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                      borderRadius: 8, padding: "5px 10px", display: "inline-block",
+                    }}>{fmtTime(r.startTime)}</span>
+
+                    {/* block duration */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input
+                        type="number"
+                        min={1}
+                        value={r.blockDuration}
+                        onChange={(e) => updateRow(r.id, { blockDuration: Math.max(1, Number(e.target.value) || 1) })}
+                        style={{ ...cellBase, width: 54, background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, borderRadius: 8, padding: "5px 9px", textAlign: "center" }}
+                      />
+                      <span style={{ fontSize: 12, color: C.muted }}>min</span>
+                    </div>
+
+                    {/* client */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+                      <ClientIcon color={cl?.color || "#9aa0a8"} name={r.client} size={24} />
+                      <span style={{ fontSize: 13, color: C.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.client || "—"}</span>
+                      <select
+                        value={r.client}
+                        onChange={(e) => updateRow(r.id, { client: e.target.value })}
+                        style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}
+                      >
+                        <option value="">— none —</option>
+                        {clients.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+
+                    {/* kpi */}
+                    <input
+                      value={r.kpi}
+                      onChange={(e) => updateRow(r.id, { kpi: e.target.value })}
+                      placeholder="e.g. Book 2 calls"
+                      style={{ ...cellBase, width: "100%", padding: "5px 0" }}
+                    />
+
+                    {/* notes */}
+                    <input
+                      value={r.notes}
+                      onChange={(e) => updateRow(r.id, { notes: e.target.value })}
+                      placeholder="Notes…"
+                      style={{ ...cellBase, width: "100%", padding: "5px 0" }}
+                    />
+
+                    {/* delete */}
+                    <button onClick={() => removeRow(r.id)} style={{ border: "none", background: "transparent", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center" }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ---------- auth screen ---------- */
 function AuthScreen({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -1908,6 +2087,7 @@ export default function Roster() {
   const [tab, setTab] = useState("Clients");
   const [clients, setClients] = useState(CLIENTS);
   const [tasks, setTasks]     = useState(SEED_TASKS);
+  const [schedule, setSchedule] = useState(() => { try { return JSON.parse(localStorage.getItem("roster_schedule") || "[]"); } catch { return []; } });
   const [ready, setReady]     = useState(false);
   const [enumColors, setEnumColors] = useState(() => ({ ...DEFAULT_COLORS }));
   const [nicheOptions, setNicheOptions] = useState(DEFAULT_NICHE_OPTIONS);
@@ -2050,6 +2230,14 @@ export default function Roster() {
     });
   }, []);
 
+  const saveSchedule = (fn) => {
+    setSchedule((prev) => {
+      const next = typeof fn === "function" ? fn(prev) : fn;
+      try { localStorage.setItem("roster_schedule", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const logout = async () => { await api.logout().catch(() => {}); api.clearToken(); setUser(null); setReady(false); };
 
   if (!user) return <AuthScreen onLogin={(u) => setUser(u)} />;
@@ -2073,6 +2261,7 @@ export default function Roster() {
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
+        {tab === "Call Schedule" && <CallSchedulePage clients={clients} schedule={schedule} setSchedule={saveSchedule} />}
         {tab === "Settings" && <SettingsPage user={user} />}
       </div>
     </div>
