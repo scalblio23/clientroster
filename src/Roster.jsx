@@ -1296,29 +1296,21 @@ function SettingsPage({ user }) {
           : logs.length === 0
             ? <div style={{ color: C.muted, fontSize: 13 }}>No activity yet.</div>
             : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 1, maxHeight: 420, overflowY: "auto" }} className="glass-scroll">
-                {logs.map((log, i) => {
-                  const meta = ACTION_LABEL[log.action] || { label: log.action, color: C.muted };
-                  return (
-                    <div key={i} style={{
-                      display: "grid", gridTemplateColumns: "110px 1fr auto",
-                      alignItems: "center", gap: 16,
-                      padding: "9px 4px",
-                      borderBottom: i < logs.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                    }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, color: meta.color,
-                        background: meta.color + "18", border: `1px solid ${meta.color}33`,
-                        borderRadius: 999, padding: "3px 9px", textAlign: "center", whiteSpace: "nowrap",
-                      }}>{meta.label}</span>
-                      <div>
-                        <span style={{ fontSize: 13, color: C.text }}>{log.detail}</span>
-                        <span style={{ fontSize: 12, color: C.faint, marginLeft: 8 }}>by @{log.user}</span>
-                      </div>
-                      <span style={{ fontSize: 12, color: C.faint, whiteSpace: "nowrap" }}>{timeAgo(log.ts)}</span>
-                    </div>
-                  );
-                })}
+              <div style={{ display: "flex", flexDirection: "column", maxHeight: 480, overflowY: "auto" }} className="glass-scroll">
+                {logs.map((log, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16,
+                    padding: "8px 2px",
+                    borderBottom: i < logs.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                  }}>
+                    <span style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>
+                      <span style={{ color: C.orange, fontWeight: 600 }}>@{log.user}</span>
+                      {" — "}
+                      {log.detail}
+                    </span>
+                    <span style={{ fontSize: 11, color: C.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{timeAgo(log.ts)}</span>
+                  </div>
+                ))}
               </div>
             )
         }

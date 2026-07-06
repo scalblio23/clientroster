@@ -31,18 +31,18 @@ function diffClients(oldList, newList) {
 
   for (const nc of newList) {
     const oc = oldMap[nc.name];
-    if (!oc) { changes.push({ action: "client_added", detail: `Added client: ${nc.name}` }); continue; }
+    if (!oc) { changes.push({ action: "client_added", detail: `Added client ${nc.name}` }); continue; }
     for (const field of Object.keys(TRACKED)) {
       if (String(oc[field] ?? "") !== String(nc[field] ?? "")) {
         changes.push({
           action: "client_change",
-          detail: `${nc.name}: ${TRACKED[field].label} changed from "${fmt(field, oc[field])}" to "${fmt(field, nc[field])}"`,
+          detail: `Changed ${nc.name}: ${TRACKED[field].label} from ${fmt(field, oc[field])} to ${fmt(field, nc[field])}`,
         });
       }
     }
   }
   for (const oc of oldList) {
-    if (!newMap[oc.name]) changes.push({ action: "client_removed", detail: `Removed client: ${oc.name}` });
+    if (!newMap[oc.name]) changes.push({ action: "client_removed", detail: `Removed client ${oc.name}` });
   }
   return changes;
 }

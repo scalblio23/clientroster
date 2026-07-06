@@ -15,18 +15,18 @@ function diffTasks(oldList, newList) {
 
   for (const nt of newList) {
     const ot = oldMap[nt.id];
-    if (!ot) { changes.push({ action: "task_added", detail: `Task added for ${nt.client}: "${nt.text}"` }); continue; }
+    if (!ot) { changes.push({ action: "task_added", detail: `Added task for ${nt.client}: "${nt.text}"` }); continue; }
     for (const field of Object.keys(TASK_TRACKED)) {
       if (String(ot[field] ?? "") !== String(nt[field] ?? "")) {
         changes.push({
           action: "task_change",
-          detail: `Task "${nt.text}" (${nt.client}): ${TASK_TRACKED[field].label} changed from "${ot[field] || "—"}" to "${nt[field] || "—"}"`,
+          detail: `Changed task "${nt.text}" (${nt.client}): ${TASK_TRACKED[field].label} from "${ot[field] || "—"}" to "${nt[field] || "—"}"`,
         });
       }
     }
   }
   for (const ot of oldList) {
-    if (!newMap[ot.id]) changes.push({ action: "task_removed", detail: `Task removed for ${ot.client}: "${ot.text}"` });
+    if (!newMap[ot.id]) changes.push({ action: "task_removed", detail: `Removed task for ${ot.client}: "${ot.text}"` });
   }
   return changes;
 }
