@@ -522,11 +522,13 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
   const dragKey = useRef(null);
+  const didDrag = useRef(false);
 
   const cols = colOrder.map((k) => COL_DEFS.find((d) => d.key === k));
   const grid = cols.map((c) => c.width).join(" ");
 
   const handleHeaderClick = (key) => {
+    if (didDrag.current) return;
     if (key === "tasks" || key === "notes") return;
     if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
@@ -541,8 +543,8 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
       })
     : clients;
 
-  const onDragStart = (key) => { dragKey.current = key; };
-  const onDragEnter = (key) => { if (key !== dragKey.current) setDragOver(key); };
+  const onDragStart = (key) => { dragKey.current = key; didDrag.current = false; };
+  const onDragEnter = (key) => { if (key !== dragKey.current) { didDrag.current = true; setDragOver(key); } };
   const onDrop = (targetKey) => {
     if (!dragKey.current || dragKey.current === targetKey) return;
     setColOrder((prev) => {
@@ -555,6 +557,12 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
     });
     dragKey.current = null;
     setDragOver(null);
+  };
+  const onDragEnd = () => {
+    dragKey.current = null;
+    setDragOver(null);
+    // reset didDrag after click event fires (~0ms)
+    setTimeout(() => { didDrag.current = false; }, 0);
   };
 
   const renderCell = (colKey, c, cTasks) => {
@@ -612,7 +620,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
                 onDragEnter={() => onDragEnter(col.key)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => onDrop(col.key)}
-                onDragEnd={() => setDragOver(null)}
+                onDragEnd={onDragEnd}
                 onClick={() => handleHeaderClick(col.key)}
                 style={{
                   fontSize: 11, letterSpacing: 1, fontWeight: 600,
