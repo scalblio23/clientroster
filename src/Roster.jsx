@@ -555,9 +555,18 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
       })
     : clients;
 
-  const onDragStart = (key) => { dragKey.current = key; didDrag.current = false; };
-  const onDragEnter = (key) => { if (key !== dragKey.current) { didDrag.current = true; setDragOver(key); } };
-  const onDrop = (targetKey) => {
+  const onDragStart = (e, key) => {
+    dragKey.current = key;
+    didDrag.current = false;
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onDragEnter = (e, key) => {
+    e.preventDefault();
+    if (e.currentTarget !== e.target) return; // ignore child elements
+    if (key !== dragKey.current) { didDrag.current = true; setDragOver(key); }
+  };
+  const onDrop = (e, targetKey) => {
+    e.preventDefault();
     if (!dragKey.current || dragKey.current === targetKey) return;
     setColOrder((prev) => {
       const next = [...prev];
@@ -573,7 +582,6 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
   const onDragEnd = () => {
     dragKey.current = null;
     setDragOver(null);
-    // reset didDrag after click event fires (~0ms)
     setTimeout(() => { didDrag.current = false; }, 0);
   };
 
@@ -640,10 +648,10 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
               <div
                 key={col.key}
                 draggable
-                onDragStart={() => onDragStart(col.key)}
-                onDragEnter={() => onDragEnter(col.key)}
+                onDragStart={(e) => onDragStart(e, col.key)}
+                onDragEnter={(e) => onDragEnter(e, col.key)}
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={() => onDrop(col.key)}
+                onDrop={(e) => onDrop(e, col.key)}
                 onDragEnd={onDragEnd}
                 onClick={() => handleHeaderClick(col.key)}
                 style={{
@@ -655,9 +663,9 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
                   display: "flex", alignItems: "center",
                 }}
               >
-                {col.label}
+                <span style={{ pointerEvents: "none" }}>{col.label}</span>
                 {col.key !== "tasks" && col.key !== "notes" && (
-                  <SortIcon dir={sortKey === col.key ? sortDir : null} />
+                  <span style={{ pointerEvents: "none" }}><SortIcon dir={sortKey === col.key ? sortDir : null} /></span>
                 )}
               </div>
             ))}
