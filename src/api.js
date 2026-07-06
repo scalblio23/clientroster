@@ -32,6 +32,7 @@ export const api = {
   putTasks:   (data)   => req("PUT",  "/tasks", data),
 
   getUsers:       ()     => req("GET",  "/users"),
+  getLogs:        ()     => req("GET",  "/logs"),
   changePassword: (data) => req("POST", "/changepassword", data),
 
   saveToken: (token) => sessionStorage.setItem("roster_token", token),

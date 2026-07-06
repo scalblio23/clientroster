@@ -58,3 +58,11 @@ export async function getClients() { return (await readJson("roster/clients.json
 export async function saveClients(data) { await writeJson("roster/clients.json", data); }
 export async function getTasks() { return (await readJson("roster/tasks.json")) ?? []; }
 export async function saveTasks(data) { await writeJson("roster/tasks.json", data); }
+
+export async function getLogs() { return (await readJson("roster/logs.json")) ?? []; }
+export async function appendLog(entry) {
+  const logs = (await readJson("roster/logs.json")) ?? [];
+  logs.unshift({ ...entry, ts: Date.now() });
+  if (logs.length > 200) logs.length = 200;
+  await writeJson("roster/logs.json", logs);
+}

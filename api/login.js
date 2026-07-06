@@ -1,4 +1,4 @@
-import { getUser, setToken } from "./_db.js";
+import { getUser, setToken, appendLog } from "./_db.js";
 import crypto from "crypto";
 
 function hash(s) {
@@ -14,5 +14,6 @@ export default async function handler(req, res) {
 
   const token = crypto.randomUUID();
   await setToken(token, username);
+  await appendLog({ user: username, action: "logged_in", detail: `${user.name} logged in` });
   res.json({ token, name: user.name, username: user.username });
 }

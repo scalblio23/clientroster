@@ -1167,9 +1167,26 @@ function AuthScreen({ onLogin }) {
 }
 
 /* ---------- settings ---------- */
+const ACTION_LABEL = {
+  signed_up:       { label: "Signed up",      color: "#34d399" },
+  logged_in:       { label: "Logged in",       color: "#5b9bff" },
+  updated_clients: { label: "Updated clients", color: C.orange  },
+  updated_tasks:   { label: "Updated tasks",   color: "#a78bfa" },
+};
+
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 function SettingsPage({ user }) {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
@@ -1181,6 +1198,10 @@ function SettingsPage({ user }) {
       .then(setUsers)
       .catch(() => setUsers([]))
       .finally(() => setLoadingUsers(false));
+    api.getLogs()
+      .then(setLogs)
+      .catch(() => setLogs([]))
+      .finally(() => setLoadingLogs(false));
   }, []);
 
   const changePassword = async () => {
@@ -1258,6 +1279,45 @@ function SettingsPage({ user }) {
             opacity: pwLoading ? 0.6 : 1, alignSelf: "flex-start",
           }}>{pwLoading ? "Saving…" : "Update Password"}</button>
         </div>
+      </div>
+
+      {/* activity log */}
+      <div style={{ ...GLASS, borderRadius: 20, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Activity Log</div>
+          <span style={{ fontSize: 12, color: C.muted }}>Last {logs.length} events</span>
+        </div>
+        {loadingLogs
+          ? <div style={{ color: C.muted, fontSize: 13 }}>Loading…</div>
+          : logs.length === 0
+            ? <div style={{ color: C.muted, fontSize: 13 }}>No activity yet.</div>
+            : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 1, maxHeight: 420, overflowY: "auto" }} className="glass-scroll">
+                {logs.map((log, i) => {
+                  const meta = ACTION_LABEL[log.action] || { label: log.action, color: C.muted };
+                  return (
+                    <div key={i} style={{
+                      display: "grid", gridTemplateColumns: "110px 1fr auto",
+                      alignItems: "center", gap: 16,
+                      padding: "9px 4px",
+                      borderBottom: i < logs.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                    }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, color: meta.color,
+                        background: meta.color + "18", border: `1px solid ${meta.color}33`,
+                        borderRadius: 999, padding: "3px 9px", textAlign: "center", whiteSpace: "nowrap",
+                      }}>{meta.label}</span>
+                      <div>
+                        <span style={{ fontSize: 13, color: C.text }}>{log.detail}</span>
+                        <span style={{ fontSize: 12, color: C.faint, marginLeft: 8 }}>by @{log.user}</span>
+                      </div>
+                      <span style={{ fontSize: 12, color: C.faint, whiteSpace: "nowrap" }}>{timeAgo(log.ts)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+        }
       </div>
     </div>
   );

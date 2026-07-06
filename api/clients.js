@@ -1,4 +1,4 @@
-import { getToken, getClients, saveClients } from "./_db.js";
+import { getToken, getClients, saveClients, appendLog } from "./_db.js";
 
 async function auth(req, res) {
   const token = req.headers["x-token"];
@@ -12,6 +12,11 @@ async function auth(req, res) {
 export default async function handler(req, res) {
   if (!await auth(req, res)) return;
   if (req.method === "GET") return res.json(await getClients());
-  if (req.method === "PUT") { await saveClients(req.body); return res.json({ ok: true }); }
+  if (req.method === "PUT") {
+    await saveClients(req.body);
+    const username = await getToken(req.headers["x-token"]);
+    await appendLog({ user: username, action: "updated_clients", detail: "Client roster saved" });
+    return res.json({ ok: true });
+  }
   res.status(405).end();
 }
