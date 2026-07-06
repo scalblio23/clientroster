@@ -1,17 +1,17 @@
-import { put, list } from "@vercel/blob";
+import { put, list, download } from "@vercel/blob";
 
 async function readJson(key) {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (!blobs.length) return null;
-    const res = await fetch(blobs[0].url + "?t=" + Date.now());
+    const res = await download(blobs[0].url);
     return await res.json();
   } catch { return null; }
 }
 
 async function writeJson(key, data) {
   await put(key, JSON.stringify(data), {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     contentType: "application/json",
   });
