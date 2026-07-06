@@ -270,7 +270,10 @@ function Header() {
           background: `linear-gradient(150deg, ${C.orange}, ${C.orangeDeep})`,
           boxShadow: `0 4px 14px ${C.orange}55`,
         }} />
-        <span style={{ fontSize: 19, fontWeight: 600, color: C.text }}>Roster</span>
+        <div style={{ lineHeight: 1.2 }}>
+          <span style={{ fontSize: 19, fontWeight: 600, color: C.text }}>Roster</span>
+          <div style={{ fontSize: 10, color: C.faint, fontWeight: 500, letterSpacing: 0.5 }}>v1.45</div>
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button style={{
