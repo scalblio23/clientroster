@@ -1168,10 +1168,14 @@ function AuthScreen({ onLogin }) {
 
 /* ---------- settings ---------- */
 const ACTION_LABEL = {
-  signed_up:       { label: "Signed up",      color: "#34d399" },
-  logged_in:       { label: "Logged in",       color: "#5b9bff" },
-  updated_clients: { label: "Updated clients", color: C.orange  },
-  updated_tasks:   { label: "Updated tasks",   color: "#a78bfa" },
+  signed_up:      { label: "Signed up",    color: "#34d399" },
+  logged_in:      { label: "Logged in",    color: "#5b9bff" },
+  client_added:   { label: "Client added", color: "#34d399" },
+  client_removed: { label: "Client removed", color: C.red   },
+  client_change:  { label: "Client edit",  color: C.orange  },
+  task_added:     { label: "Task added",   color: "#a78bfa" },
+  task_removed:   { label: "Task removed", color: "#f0674a" },
+  task_change:    { label: "Task edit",    color: "#c084fc" },
 };
 
 function timeAgo(ts) {
