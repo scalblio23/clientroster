@@ -1349,22 +1349,42 @@ export default function Roster() {
       .catch(() => setReady(true));
   }, [user?.username]);
 
-  const saveClients = useCallback((next, changes) => { api.putClients({ clients: next, changes: changes || [] }); }, []);
-  const saveTasks   = useCallback((next, changes) => { api.putTasks({ tasks: next, changes: changes || [] }); }, []);
+  const clientSaveTimer = useRef(null);
+  const taskSaveTimer   = useRef(null);
+
+  const saveClients = useCallback((next, changes) => {
+    if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
+    clientSaveTimer.current = setTimeout(() => {
+      api.putClients({ clients: next, changes: changes || [] });
+    }, 600);
+  }, []);
+
+  const saveTasks = useCallback((next, changes) => {
+    if (taskSaveTimer.current) clearTimeout(taskSaveTimer.current);
+    taskSaveTimer.current = setTimeout(() => {
+      api.putTasks({ tasks: next, changes: changes || [] });
+    }, 600);
+  }, []);
 
   const setAndSaveClients = (fn, changes) => setClients((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; saveClients(next, changes); return next; });
   const setAndSaveTasks   = (fn, changes) => setTasks((prev)   => { const next = typeof fn === "function" ? fn(prev) : fn; saveTasks(next, changes);   return next; });
 
   const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes" };
+  const pendingClientChanges = useRef([]);
   const updateClient = (name, patch) => {
     setClients((prev) => {
       const old = prev.find((c) => c.name === name);
       const next = prev.map((c) => (c.name === name ? { ...c, ...patch } : c));
-      const changes = Object.entries(patch)
+      const newChanges = Object.entries(patch)
         .filter(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])
-        .map(([f, v]) => ({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${old?.[f] || "—"}" to "${v || "—"}"` }));
-      // defer API call out of setState to avoid React strict-mode double-invoke
-      setTimeout(() => saveClients(next, changes), 0);
+        .map(([f, v]) => ({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${String(old?.[f] ?? "") || "—"}" to "${String(v ?? "") || "—"}"` }));
+      pendingClientChanges.current = [...pendingClientChanges.current, ...newChanges];
+      if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
+      clientSaveTimer.current = setTimeout(() => {
+        const changes = pendingClientChanges.current;
+        pendingClientChanges.current = [];
+        api.putClients({ clients: next, changes });
+      }, 600);
       return next;
     });
   };
@@ -1376,7 +1396,7 @@ export default function Roster() {
     setTasks((prev) => {
       const t = prev.find((t) => t.id === id);
       const next = prev.filter((t) => t.id !== id).map((t) => ({ ...t, deps: t.deps.filter((d) => d !== id) }));
-      setTimeout(() => saveTasks(next, t ? [{ action: "task_removed", detail: `Removed task for ${t.client}: "${t.text}"` }] : []), 0);
+      saveTasks(next, t ? [{ action: "task_removed", detail: `Removed task for ${t.client}: "${t.text}"` }] : []);
       return next;
     });
   };
