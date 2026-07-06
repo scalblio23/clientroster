@@ -59,11 +59,9 @@ export default async function handler(req, res) {
   if (req.method === "GET") return res.json(await getClients());
   if (req.method === "PUT") {
     try {
-      const oldClients = await getClients();
-      await saveClients(req.body);
-      const changes = diffClients(oldClients, req.body);
-      console.log("client diff:", JSON.stringify(changes));
-      if (changes.length) await appendLogs(changes.map((c) => ({ user: username, ...c })));
+      const { clients, changes } = req.body;
+      await saveClients(clients);
+      if (changes?.length) await appendLogs(changes.map((c) => ({ user: username, ...c })));
     } catch (e) {
       console.error("clients PUT error:", e?.message);
     }

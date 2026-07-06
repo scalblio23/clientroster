@@ -1339,16 +1339,37 @@ export default function Roster() {
       .catch(() => setReady(true));
   }, [user?.username]);
 
-  const saveClients = useCallback((next) => { api.putClients(next); }, []);
-  const saveTasks   = useCallback((next) => { api.putTasks(next); }, []);
+  const saveClients = useCallback((next, changes) => { api.putClients({ clients: next, changes: changes || [] }); }, []);
+  const saveTasks   = useCallback((next, changes) => { api.putTasks({ tasks: next, changes: changes || [] }); }, []);
 
-  const setAndSaveClients = (fn) => setClients((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; saveClients(next); return next; });
-  const setAndSaveTasks   = (fn) => setTasks((prev)   => { const next = typeof fn === "function" ? fn(prev) : fn; saveTasks(next);   return next; });
+  const setAndSaveClients = (fn, changes) => setClients((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; saveClients(next, changes); return next; });
+  const setAndSaveTasks   = (fn, changes) => setTasks((prev)   => { const next = typeof fn === "function" ? fn(prev) : fn; saveTasks(next, changes);   return next; });
 
-  const updateClient = (name, patch) => setAndSaveClients((cs) => cs.map((c) => (c.name === name ? { ...c, ...patch } : c)));
-  const addTask    = (client, text) => setAndSaveTasks((ts) => [...ts, { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "" }]);
-  const removeTask = (id)           => setAndSaveTasks((ts) => ts.filter((t) => t.id !== id).map((t) => ({ ...t, deps: t.deps.filter((d) => d !== id) })));
-  const updateTask = (id, patch)    => setAndSaveTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes" };
+  const updateClient = (name, patch) => {
+    setClients((prev) => {
+      const old = prev.find((c) => c.name === name);
+      const next = prev.map((c) => (c.name === name ? { ...c, ...patch } : c));
+      const changes = Object.entries(patch)
+        .filter(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])
+        .map(([f, v]) => ({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${old?.[f] || "—"}" to "${v || "—"}"` }));
+      saveClients(next, changes);
+      return next;
+    });
+  };
+  const addTask = (client, text) => {
+    const newTask = { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "" };
+    setAndSaveTasks((ts) => [...ts, newTask], [{ action: "task_added", detail: `Added task for ${client}: "${text}"` }]);
+  };
+  const removeTask = (id) => {
+    setTasks((prev) => {
+      const t = prev.find((t) => t.id === id);
+      const next = prev.filter((t) => t.id !== id).map((t) => ({ ...t, deps: t.deps.filter((d) => d !== id) }));
+      saveTasks(next, t ? [{ action: "task_removed", detail: `Removed task for ${t.client}: "${t.text}"` }] : []);
+      return next;
+    });
+  };
+  const updateTask = (id, patch) => setAndSaveTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)), []);
 
   const logout = async () => { await api.logout().catch(() => {}); api.clearToken(); setUser(null); setReady(false); };
 

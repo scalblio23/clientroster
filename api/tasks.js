@@ -42,10 +42,13 @@ export default async function handler(req, res) {
   if (!username) return;
   if (req.method === "GET") return res.json(await getTasks());
   if (req.method === "PUT") {
-    const oldTasks = await getTasks();
-    await saveTasks(req.body);
-    const changes = diffTasks(oldTasks, req.body);
-    await appendLogs(changes.map((c) => ({ user: username, ...c })));
+    try {
+      const { tasks, changes } = req.body;
+      await saveTasks(tasks);
+      if (changes?.length) await appendLogs(changes.map((c) => ({ user: username, ...c })));
+    } catch (e) {
+      console.error("tasks PUT error:", e?.message);
+    }
     return res.json({ ok: true });
   }
   res.status(405).end();
