@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.52</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.53</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -652,8 +652,9 @@ const COL_DEFS = [
   { key: "leads",      label: "Leads",       width: "80px"  },
   { key: "cpl",        label: "CPL",         width: "90px"  },
   { key: "startDate",  label: "Start Date",  width: "120px" },
-  { key: "niche",       label: "Niche",        width: "140px" },
-  { key: "strategyDoc", label: "Strategy Doc", width: "160px" },
+  { key: "niche",       label: "Niche",          width: "140px" },
+  { key: "strategyDoc", label: "Strategy Doc",  width: "160px" },
+  { key: "adAccountLink", label: "Ad Account",  width: "160px" },
   { key: "script",     label: "Script",      width: "160px" },
   { key: "callType",   label: "Call Type",   width: "120px" },
   { key: "phone",      label: "Phone",       width: "150px" },
@@ -679,8 +680,9 @@ function clientSortVal(key, c) {
     case "onboarding": return c.onboarding ?? "";
     case "priority":   return ["High","Medium","Low"].indexOf(c.priority);
     case "startDate":  return c.start ?? "";
-    case "niche":       return c.niche ?? "";
-    case "strategyDoc": return c.strategyDoc ?? "";
+    case "niche":          return c.niche ?? "";
+    case "strategyDoc":    return c.strategyDoc ?? "";
+    case "adAccountLink":  return c.adAccountLink ?? "";
     case "script":     return c.script ?? "";
     case "callType":   return CALL_TYPE_ORDER.indexOf(c.callType ?? "Callout");
     case "phone":      return c.phone ?? "";
@@ -815,6 +817,17 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
             placeholder="https://…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
           {c.strategyDoc && (
             <a href={c.strategyDoc} target="_blank" rel="noreferrer" style={{ color: C.orange, flexShrink: 0, display: "grid", placeItems: "center" }}>
+              <ExternalLink size={13} />
+            </a>
+          )}
+        </div>
+      );
+      case "adAccountLink": return (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <BlurInput value={c.adAccountLink || ""} onCommit={(v) => updateClient(c.name, { adAccountLink: v })}
+            placeholder="https://…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
+          {c.adAccountLink && (
+            <a href={c.adAccountLink} target="_blank" rel="noreferrer" style={{ color: C.orange, flexShrink: 0, display: "grid", placeItems: "center" }}>
               <ExternalLink size={13} />
             </a>
           )}
@@ -1624,7 +1637,7 @@ export default function Roster() {
 
   const setAndSaveTasks = (fn, changeEntry) => setTasks((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; scheduleTaskSave(changeEntry || null); return next; });
 
-  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc" };
+  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
 
   // No side effects inside setState — use clientsRef for old values
   const updateClient = (name, patch) => {
