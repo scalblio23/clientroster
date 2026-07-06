@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2 } from "lucide-react";
 
 /* ---------- theme tokens (orange) ---------- */
@@ -473,18 +473,111 @@ function CycleBadge({ value, order, styleFor, onChange }) {
   );
 }
 
+const COL_DEFS = [
+  { key: "name",       label: "Name",        width: "170px" },
+  { key: "notes",      label: "Notes",       width: "280px" },
+  { key: "daysOld",    label: "Days Old",    width: "80px"  },
+  { key: "vibe",       label: "Client Vibe", width: "120px" },
+  { key: "adStatus",   label: "Ad Status",   width: "110px" },
+  { key: "onboarding", label: "Onboarding",  width: "170px" },
+  { key: "priority",   label: "Priority",    width: "100px" },
+  { key: "mrr",        label: "MRR",         width: "90px"  },
+  { key: "adSpend",    label: "Ad Spend",    width: "100px" },
+  { key: "leads",      label: "Leads",       width: "80px"  },
+  { key: "cpl",        label: "CPL",         width: "90px"  },
+  { key: "startDate",  label: "Start Date",  width: "120px" },
+  { key: "phone",      label: "Phone",       width: "150px" },
+  { key: "email",      label: "Email",       width: "200px" },
+  { key: "tasks",      label: "Tasks",       width: "1fr"   },
+];
+
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
-  const cols = ["Name", "Notes", "Days old", "Client Vibe", "Ad Status", "Onboarding", "Priority", "MRR", "Ad Spend", "Leads", "CPL", "Start Date", "Phone", "Email", "Tasks"];
-  const grid = "170px 280px 80px 120px 110px 170px 100px 90px 100px 80px 90px 120px 150px 200px 1fr";
+  const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
+  const [dragOver, setDragOver] = useState(null);
+  const dragKey = useRef(null);
+
+  const cols = colOrder.map((k) => COL_DEFS.find((d) => d.key === k));
+  const grid = cols.map((c) => c.width).join(" ");
+
+  const onDragStart = (key) => { dragKey.current = key; };
+  const onDragEnter = (key) => { if (key !== dragKey.current) setDragOver(key); };
+  const onDrop = (targetKey) => {
+    if (!dragKey.current || dragKey.current === targetKey) return;
+    setColOrder((prev) => {
+      const next = [...prev];
+      const from = next.indexOf(dragKey.current);
+      const to = next.indexOf(targetKey);
+      next.splice(from, 1);
+      next.splice(to, 0, dragKey.current);
+      return next;
+    });
+    dragKey.current = null;
+    setDragOver(null);
+  };
+
+  const renderCell = (colKey, c, cTasks) => {
+    switch (colKey) {
+      case "name": return (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <ClientIcon color={c.color} name={c.name} size={30} />
+          <input value={c.name} onChange={(e) => updateClient(c.name, { name: e.target.value })}
+            style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }} />
+        </div>
+      );
+      case "notes": return (
+        <input value={c.notes || ""} onChange={(e) => updateClient(c.name, { notes: e.target.value })}
+          placeholder="Add note…" style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }} />
+      );
+      case "daysOld": {
+        const d = daysOld(c.start); const col = daysColor(d);
+        return <div style={{ fontSize: 14, fontWeight: 700, color: col }}>{d ?? "—"}<span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>d</span></div>;
+      }
+      case "vibe": return (
+        <button onClick={() => { const o = ["good","neutral","at risk"]; updateClient(c.name, { status: o[(o.indexOf(c.status)+1)%o.length] }); }}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <StatusChip status={c.status} />
+        </button>
+      );
+      case "adStatus": return <CycleBadge value={c.adStatus || "Not Live"} order={AD_STATUS_ORDER} styleFor={adStatusStyle} onChange={(v) => updateClient(c.name, { adStatus: v })} />;
+      case "onboarding": return <CycleBadge value={c.onboarding || "Pending"} order={ONBOARDING_ORDER} styleFor={onboardingStyle} onChange={(v) => updateClient(c.name, { onboarding: v })} />;
+      case "priority": return <CycleBadge value={c.priority || "Medium"} order={CLIENT_PRIORITY_ORDER} styleFor={priorityStyle} onChange={(v) => updateClient(c.name, { priority: v })} />;
+      case "mrr": return <input type="number" value={c.mrr} onChange={(e) => updateClient(c.name, { mrr: Number(e.target.value) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
+      case "adSpend": return <input type="number" value={c.adSpend || 0} onChange={(e) => updateClient(c.name, { adSpend: Number(e.target.value) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
+      case "leads": return <input type="number" value={c.leads || 0} onChange={(e) => updateClient(c.name, { leads: Number(e.target.value) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
+      case "cpl": {
+        const cpl = (c.leads || 0) > 0 ? ((c.adSpend || 0) / c.leads).toFixed(2) : null;
+        return <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>{cpl ? `$${cpl}` : "—"}</div>;
+      }
+      case "startDate": return <input value={c.start} onChange={(e) => updateClient(c.name, { start: e.target.value })} style={{ ...cellInput({ fontSize: 13 }) }} />;
+      case "phone": return <input value={c.phone} onChange={(e) => updateClient(c.name, { phone: e.target.value })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
+      case "email": return <input value={c.email} onChange={(e) => updateClient(c.name, { email: e.target.value })} style={{ ...cellInput({ fontSize: 13, color: C.muted }) }} />;
+      case "tasks": return <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />;
+      default: return null;
+    }
+  };
 
   return (
     <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
       <div className="glass-scroll" style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 2200 }}>
-          {/* header */}
-          <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            {cols.map((h) => (
-              <span key={h} style={{ fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase" }}>{h}</span>
+          {/* header — drag to reorder */}
+          <div style={{ display: "grid", gridTemplateColumns: grid, gap: 12, padding: "12px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            {cols.map((col) => (
+              <div
+                key={col.key}
+                draggable
+                onDragStart={() => onDragStart(col.key)}
+                onDragEnter={() => onDragEnter(col.key)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => onDrop(col.key)}
+                onDragEnd={() => setDragOver(null)}
+                style={{
+                  fontSize: 11, letterSpacing: 1, fontWeight: 600, color: dragOver === col.key ? C.orange : C.muted,
+                  textTransform: "uppercase", cursor: "grab", userSelect: "none",
+                  borderBottom: dragOver === col.key ? `2px solid ${C.orange}` : "2px solid transparent",
+                  paddingBottom: 2, transition: "color .15s, border-color .15s",
+                }}
+              >{col.label}</div>
             ))}
           </div>
           {/* rows */}
@@ -493,95 +586,11 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
             return (
               <div key={c.name} style={{
                 display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 12,
-                padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
+                padding: "12px 32px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
               }}>
-                {/* name */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <ClientIcon color={c.color} name={c.name} size={30} />
-                  <input
-                    value={c.name}
-                    onChange={(e) => updateClient(c.name, { name: e.target.value })}
-                    style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }}
-                  />
-                </div>
-                {/* notes */}
-                <input
-                  value={c.notes || ""}
-                  onChange={(e) => updateClient(c.name, { notes: e.target.value })}
-                  placeholder="Add note…"
-                  style={{ ...cellInput({ fontSize: 12.5, color: C.muted }) }}
-                />
-                {/* days old */}
-                {(() => { const d = daysOld(c.start); const col = daysColor(d); return (
-                  <div style={{ fontSize: 14, fontWeight: 700, color: col }}>
-                    {d !== null ? d : "—"}<span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>d</span>
-                  </div>
-                ); })()}
-                {/* client vibe */}
-                <div>
-                  <button onClick={() => { const o = ["good","neutral","at risk"]; updateClient(c.name, { status: o[(o.indexOf(c.status)+1)%o.length] }); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    <StatusChip status={c.status} />
-                  </button>
-                </div>
-                {/* ad status */}
-                <CycleBadge value={c.adStatus || "Not Live"} order={AD_STATUS_ORDER} styleFor={adStatusStyle} onChange={(v) => updateClient(c.name, { adStatus: v })} />
-                {/* onboarding */}
-                <CycleBadge value={c.onboarding || "Pending"} order={ONBOARDING_ORDER} styleFor={onboardingStyle} onChange={(v) => updateClient(c.name, { onboarding: v })} />
-                {/* priority */}
-                <CycleBadge value={c.priority || "Medium"} order={CLIENT_PRIORITY_ORDER} styleFor={priorityStyle} onChange={(v) => updateClient(c.name, { priority: v })} />
-                {/* mrr */}
-                <input
-                  type="number"
-                  value={c.mrr}
-                  onChange={(e) => updateClient(c.name, { mrr: Number(e.target.value) })}
-                  style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }}
-                />
-                {/* ad spend */}
-                <input
-                  type="number"
-                  value={c.adSpend || 0}
-                  onChange={(e) => updateClient(c.name, { adSpend: Number(e.target.value) })}
-                  style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }}
-                />
-                {/* leads */}
-                <input
-                  type="number"
-                  value={c.leads || 0}
-                  onChange={(e) => updateClient(c.name, { leads: Number(e.target.value) })}
-                  style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }}
-                />
-                {/* cpl — computed, read-only */}
-                {(() => {
-                  const spend = c.adSpend || 0;
-                  const leads = c.leads || 0;
-                  const cpl = leads > 0 ? (spend / leads).toFixed(2) : null;
-                  return (
-                    <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>
-                      {cpl ? `$${cpl}` : "—"}
-                    </div>
-                  );
-                })()}
-                {/* start date */}
-                <input
-                  value={c.start}
-                  onChange={(e) => updateClient(c.name, { start: e.target.value })}
-                  style={{ ...cellInput({ fontSize: 13 }) }}
-                />
-                {/* phone */}
-                <input
-                  value={c.phone}
-                  onChange={(e) => updateClient(c.name, { phone: e.target.value })}
-                  style={{ ...cellInput({ fontSize: 13, color: C.muted }) }}
-                />
-                {/* email */}
-                <input
-                  value={c.email}
-                  onChange={(e) => updateClient(c.name, { email: e.target.value })}
-                  style={{ ...cellInput({ fontSize: 13, color: C.muted }) }}
-                />
-                {/* tasks */}
-                <TaskPills tasks={cTasks} onAdd={(t) => addTask(c.name, t)} onRemove={(id) => removeTask(id)} />
+                {cols.map((col) => (
+                  <div key={col.key}>{renderCell(col.key, c, cTasks)}</div>
+                ))}
               </div>
             );
           })}
