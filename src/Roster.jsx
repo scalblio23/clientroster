@@ -1197,16 +1197,21 @@ function SettingsPage({ user }) {
   const [pwMsg, setPwMsg] = useState(null); // { ok, text }
   const [pwLoading, setPwLoading] = useState(false);
 
-  useEffect(() => {
-    api.getUsers()
-      .then(setUsers)
-      .catch(() => setUsers([]))
-      .finally(() => setLoadingUsers(false));
+  const fetchLogs = useCallback(() => {
+    setLoadingLogs(true);
     api.getLogs()
       .then(setLogs)
       .catch(() => setLogs([]))
       .finally(() => setLoadingLogs(false));
   }, []);
+
+  useEffect(() => {
+    api.getUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]))
+      .finally(() => setLoadingUsers(false));
+    fetchLogs();
+  }, [fetchLogs]);
 
   const changePassword = async () => {
     if (!curPw || !newPw || !confPw) { setPwMsg({ ok: false, text: "All fields required." }); return; }
@@ -1289,7 +1294,12 @@ function SettingsPage({ user }) {
       <div style={{ ...GLASS, borderRadius: 20, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Activity Log</div>
-          <span style={{ fontSize: 12, color: C.muted }}>Last {logs.length} events</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, color: C.muted }}>{logs.length} events</span>
+            <button onClick={fetchLogs} style={{ background: "rgba(255,255,255,0.07)", border: `1px solid ${C.cardBorder}`, color: C.muted, borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>
+              Refresh
+            </button>
+          </div>
         </div>
         {loadingLogs
           ? <div style={{ color: C.muted, fontSize: 13 }}>Loading…</div>
@@ -1353,7 +1363,8 @@ export default function Roster() {
       const changes = Object.entries(patch)
         .filter(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])
         .map(([f, v]) => ({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${old?.[f] || "—"}" to "${v || "—"}"` }));
-      saveClients(next, changes);
+      // defer API call out of setState to avoid React strict-mode double-invoke
+      setTimeout(() => saveClients(next, changes), 0);
       return next;
     });
   };
@@ -1365,7 +1376,7 @@ export default function Roster() {
     setTasks((prev) => {
       const t = prev.find((t) => t.id === id);
       const next = prev.filter((t) => t.id !== id).map((t) => ({ ...t, deps: t.deps.filter((d) => d !== id) }));
-      saveTasks(next, t ? [{ action: "task_removed", detail: `Removed task for ${t.client}: "${t.text}"` }] : []);
+      setTimeout(() => saveTasks(next, t ? [{ action: "task_removed", detail: `Removed task for ${t.client}: "${t.text}"` }] : []), 0);
       return next;
     });
   };
