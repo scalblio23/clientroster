@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.53</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.54</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -691,11 +691,9 @@ function clientSortVal(key, c) {
   }
 }
 
-function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption }) {
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir }) {
   const [colOrder, setColOrder] = useState(COL_DEFS.map((c) => c.key));
-  const [sortKey, setSortKey] = useState(null);
-  const [sortDir, setSortDir] = useState("asc");
-  const [dropIdx, setDropIdx] = useState(null);   // null = not dragging; number = insert-before index
+  const [dropIdx, setDropIdx] = useState(null);
   const draggingKey = useRef(null);
   const didDrag = useRef(false);
   const headerRef = useRef(null);
@@ -867,7 +865,11 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
                 onMouseDown={(e) => startDrag(e, col.key)}
                 onClick={() => handleHeaderClick(col.key)}
                 style={{
-                  position: "relative",
+                  position: col.key === "name" ? "sticky" : "relative",
+                  left: col.key === "name" ? 32 : "auto",
+                  zIndex: col.key === "name" ? 4 : "auto",
+                  background: col.key === "name" ? "#0e0e10" : "transparent",
+                  boxShadow: col.key === "name" ? "4px 0 12px rgba(0,0,0,0.5)" : "none",
                   fontSize: 11, letterSpacing: 1, fontWeight: 600,
                   color: sortKey === col.key ? C.orange : C.muted,
                   textTransform: "uppercase", cursor: "grab", userSelect: "none",
@@ -911,7 +913,13 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
                 padding: "12px 32px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
               }}>
                 {cols.map((col) => (
-                  <div key={col.key}>{renderCell(col.key, c, cTasks)}</div>
+                  <div key={col.key} style={col.key === "name" ? {
+                    position: "sticky", left: 32, zIndex: 2,
+                    background: "#0e0e10",
+                    boxShadow: "4px 0 12px rgba(0,0,0,0.5)",
+                  } : undefined}>
+                    {renderCell(col.key, c, cTasks)}
+                  </div>
                 ))}
               </div>
             );
@@ -922,9 +930,47 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
   );
 }
 
+function suggestViewName(sortKey, sortDir) {
+  if (!sortKey) return "Default";
+  const col = COL_DEFS.find((d) => d.key === sortKey);
+  const label = col?.label || sortKey;
+  const numeric = ["mrr","adSpend","leads","cpl","daysOld"].includes(sortKey);
+  const arrow = numeric
+    ? (sortDir === "asc" ? "Low → High" : "High → Low")
+    : (sortDir === "asc" ? "A → Z" : "Z → A");
+  return `${arrow} by ${label}`;
+}
+
 function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption }) {
   const [view, setView] = useState("table");
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+  const [savedViews, setSavedViews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("roster_views") || "[]"); } catch { return []; }
+  });
+  const [savingView, setSavingView] = useState(false);
+  const [viewDraft, setViewDraft] = useState("");
+
+  const saveView = () => {
+    const name = viewDraft.trim() || suggestViewName(sortKey, sortDir);
+    const next = [...savedViews.filter((v) => v.name !== name), { name, sortKey, sortDir }];
+    setSavedViews(next);
+    localStorage.setItem("roster_views", JSON.stringify(next));
+    setSavingView(false);
+    setViewDraft("");
+  };
+
+  const deleteView = (name) => {
+    const next = savedViews.filter((v) => v.name !== name);
+    setSavedViews(next);
+    localStorage.setItem("roster_views", JSON.stringify(next));
+  };
+
+  const applyView = (v) => { setSortKey(v.sortKey); setSortDir(v.sortDir); };
+
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
+  const activeViewName = savedViews.find((v) => v.sortKey === sortKey && v.sortDir === sortDir)?.name || null;
+
   return (
     <>
       {/* hero */}
@@ -954,6 +1000,85 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
             </span>
           }
         />
+
+        {/* saved views bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          {/* default chip */}
+          <button
+            onClick={() => { setSortKey(null); setSortDir("asc"); }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: !sortKey ? C.orangeSoft : "rgba(255,255,255,0.05)",
+              border: `1px solid ${!sortKey ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+              color: !sortKey ? C.orangeBright : C.muted,
+              borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
+              cursor: "pointer", fontFamily: FONT,
+            }}
+          >Default</button>
+
+          {savedViews.map((v) => {
+            const active = v.name === activeViewName;
+            return (
+              <div key={v.name} style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                <button
+                  onClick={() => applyView(v)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    background: active ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                    border: `1px solid ${active ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                    color: active ? C.orangeBright : C.muted,
+                    borderRadius: "999px 0 0 999px", padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
+                    cursor: "pointer", fontFamily: FONT,
+                  }}
+                >{v.name}</button>
+                <button
+                  onClick={() => deleteView(v.name)}
+                  aria-label="Delete view"
+                  style={{
+                    display: "grid", placeItems: "center",
+                    background: active ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                    border: `1px solid ${active ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                    borderLeft: "none",
+                    color: active ? C.orangeBright : C.muted,
+                    borderRadius: "0 999px 999px 0", padding: "5px 8px",
+                    cursor: "pointer",
+                  }}
+                ><X size={11} /></button>
+              </div>
+            );
+          })}
+
+          {/* save view button / inline input */}
+          {sortKey && !savingView && (
+            <button
+              onClick={() => { setSavingView(true); setViewDraft(suggestViewName(sortKey, sortDir)); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: "transparent", border: "1px dashed rgba(255,255,255,0.18)",
+                color: C.muted, borderRadius: 999, padding: "5px 12px", fontSize: 12.5,
+                cursor: "pointer", fontFamily: FONT,
+              }}
+            ><Plus size={11} /> Save view</button>
+          )}
+          {savingView && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input
+                autoFocus
+                value={viewDraft}
+                onChange={(e) => setViewDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveView(); if (e.key === "Escape") { setSavingView(false); setViewDraft(""); } }}
+                style={{
+                  background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)",
+                  color: C.text, borderRadius: 8, padding: "5px 10px", fontSize: 12.5,
+                  fontFamily: FONT, outline: "none", width: 200,
+                }}
+              />
+              <button onClick={saveView} style={{ background: C.orangeSoft, border: `1px solid ${C.orangeSoftBorder}`, color: C.orangeBright, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Save</button>
+              <button onClick={() => { setSavingView(false); setViewDraft(""); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+            </div>
+          )}
+        </div>
+
         {view === "cards" ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
             {clients.map((c) => (
@@ -966,7 +1091,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} />
         )}
       </div>
     </>
