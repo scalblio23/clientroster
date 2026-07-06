@@ -1469,12 +1469,19 @@ export default function Roster() {
   const clientSaveTimer      = useRef(null);
   const taskSaveTimer        = useRef(null);
   const pendingClientChanges = useRef([]);
+  const pendingClientPatches = useRef({});
   const pendingTaskChanges   = useRef([]);
 
   const flushClients = useCallback(() => {
+    const patches = pendingClientPatches.current;
     const changes = pendingClientChanges.current;
+    pendingClientPatches.current = {};
     pendingClientChanges.current = [];
-    api.putClients({ clients: clientsRef.current, changes });
+    const names = Object.keys(patches);
+    if (names.length === 0) return;
+    names.forEach((name, idx) => {
+      api.patchClient({ name, patch: patches[name], changes: idx === 0 ? changes : [] });
+    });
   }, []);
 
   const flushTasks = useCallback(() => {
@@ -1502,6 +1509,10 @@ export default function Roster() {
     setClients((prev) => {
       const old = prev.find((c) => c.name === name);
       const next = prev.map((c) => (c.name === name ? { ...c, ...patch } : c));
+      pendingClientPatches.current = {
+        ...pendingClientPatches.current,
+        [name]: { ...(pendingClientPatches.current[name] || {}), ...patch },
+      };
       Object.entries(patch)
         .filter(([f, v]) => String(old?.[f] ?? "") !== String(v ?? "") && CLIENT_FIELD_LABEL[f])
         .forEach(([f, v]) => scheduleClientSave({ action: "client_change", detail: `Changed ${name}: ${CLIENT_FIELD_LABEL[f]} from "${String(old?.[f] ?? "") || "—"}" to "${String(v ?? "") || "—"}"` }));
