@@ -4,7 +4,7 @@ async function readJson(key) {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (!blobs.length) return null;
-    const res = await fetch(blobs[0].url + "?t=" + Date.now());
+    const res = await fetch(blobs[0].url, { cache: "no-store", headers: { "Cache-Control": "no-cache, no-store" } });
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
