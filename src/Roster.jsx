@@ -1453,7 +1453,12 @@ export default function Roster() {
     if (!user) return;
     Promise.all([api.getClients(), api.getTasks(), api.getSettings()])
       .then(([c, t, s]) => {
-        if (c.length) setClients(c);
+        if (c.length) {
+          setClients(c);
+        } else {
+          // Blob is empty — seed with default clients so PATCH can find them
+          api.putClients({ clients: CLIENTS, changes: [] }).catch(() => {});
+        }
         if (t.length) setTasks(t);
         if (s?.enumColors) setEnumColors((prev) => ({ ...prev, ...s.enumColors }));
         setReady(true);
@@ -1480,9 +1485,19 @@ export default function Roster() {
     const names = Object.keys(patches);
     if (names.length === 0) return;
     names.forEach((name, idx) => {
-      api.patchClient({ name, patch: patches[name], changes: idx === 0 ? changes : [] });
+      api.patchClient({ name, patch: patches[name], changes: idx === 0 ? changes : [] })
+        .catch((e) => console.error("patchClient failed:", e?.message));
     });
   }, []);
+
+  // Flush any unsaved changes before the tab/window closes
+  useEffect(() => {
+    const onUnload = () => {
+      if (clientSaveTimer.current) { clearTimeout(clientSaveTimer.current); flushClients(); }
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [flushClients]);
 
   const flushTasks = useCallback(() => {
     const changes = pendingTaskChanges.current;

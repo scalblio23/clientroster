@@ -19,6 +19,8 @@ export default async function handler(req, res) {
       const idx = current.findIndex((c) => c.name === name);
       if (idx !== -1) {
         current[idx] = { ...current[idx], ...patch };
+      } else {
+        current.push({ name, ...patch });
       }
       await saveClients(current);
       if (changes?.length) await appendLogs(changes.map((c) => ({ user: username, ...c })));
