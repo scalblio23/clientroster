@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { api } from "./api.js";
 import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2 } from "lucide-react";
 
 /* ---------- theme tokens (orange) ---------- */
@@ -893,20 +894,133 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
   );
 }
 
+
+/* ---------- auth screen ---------- */
+function AuthScreen({ onLogin }) {
+  const [mode, setMode] = useState("login");
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const inputStyle = {
+    width: "100%", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`,
+    color: C.text, borderRadius: 12, padding: "12px 16px", fontSize: 14.5,
+    outline: "none", fontFamily: FONT, boxSizing: "border-box",
+  };
+
+  const submit = async () => {
+    setError(""); setLoading(true);
+    try {
+      const fn = mode === "signup"
+        ? api.signup({ name: name.trim(), username: username.trim(), password })
+        : api.login({ username: username.trim(), password });
+      const user = await fn;
+      api.saveToken(user.token);
+      onLogin(user);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", width: "100%", fontFamily: FONT, color: C.text,
+      display: "grid", placeItems: "center",
+      background: `radial-gradient(1200px 640px at 8% -8%, rgba(255,138,61,0.42), transparent 56%),
+                   radial-gradient(760px 520px at 30% 4%, rgba(255,90,20,0.22), transparent 50%),
+                   ${C.bg}`,
+    }}>
+      <div style={{ width: "100%", maxWidth: 400, padding: "0 24px" }}>
+        {/* logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", marginBottom: 40 }}>
+          <span style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(150deg, ${C.orange}, ${C.orangeDeep})`, boxShadow: `0 4px 18px ${C.orange}55` }} />
+          <span style={{ fontSize: 22, fontWeight: 700, color: C.text }}>Roster</span>
+        </div>
+
+        <div style={{ ...GLASS, borderRadius: 24, padding: 32 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 6 }}>
+            {mode === "login" ? "Welcome back" : "Create account"}
+          </div>
+          <div style={{ fontSize: 13.5, color: C.muted, marginBottom: 28 }}>
+            {mode === "login" ? "Sign in to access your roster." : "Set up your account to get started."}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {mode === "signup" && (
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" style={inputStyle} />
+            )}
+            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username"
+              onKeyDown={(e) => e.key === "Enter" && submit()} style={inputStyle} />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password"
+              onKeyDown={(e) => e.key === "Enter" && submit()} style={inputStyle} />
+          </div>
+
+          {error && <div style={{ marginTop: 14, fontSize: 13, color: C.red }}>{error}</div>}
+
+          <button onClick={submit} style={{
+            marginTop: 22, width: "100%", padding: "13px 0", fontSize: 15, fontWeight: 700,
+            background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`, color: "#0a0a0a",
+            border: "none", borderRadius: 12, cursor: "pointer",
+          }}>
+            {loading ? "…" : mode === "login" ? "Sign in" : "Create account"}
+          </button>
+
+          <div style={{ marginTop: 20, textAlign: "center", fontSize: 13.5, color: C.muted }}>
+            {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+            <span onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
+              style={{ color: C.orange, cursor: "pointer", fontWeight: 600 }}>
+              {mode === "login" ? "Sign up" : "Sign in"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- root ---------- */
 export default function Roster() {
+  const [user, setUser] = useState(() => api.hasToken() ? { name: "", username: "" } : null);
   const [tab, setTab] = useState("Overview");
   const [clients, setClients] = useState(CLIENTS);
-  const updateClient = (name, patch) =>
-    setClients((cs) => cs.map((c) => (c.name === name ? { ...c, ...patch } : c)));
-  const [tasks, setTasks] = useState(SEED_TASKS);
+  const [tasks, setTasks]     = useState(SEED_TASKS);
+  const [ready, setReady]     = useState(false);
 
-  const addTask = (client, text) =>
-    setTasks((ts) => [...ts, { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "" }]);
-  const removeTask = (id) =>
-    setTasks((ts) => ts.filter((t) => t.id !== id).map((t) => ({ ...t, deps: t.deps.filter((d) => d !== id) })));
-  const updateTask = (id, patch) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  /* load shared data once logged in */
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([api.getClients(), api.getTasks()])
+      .then(([c, t]) => {
+        if (c.length) setClients(c);
+        if (t.length) setTasks(t);
+        setReady(true);
+      })
+      .catch(() => setReady(true));
+  }, [user?.username]);
+
+  const saveClients = useCallback((next) => { api.putClients(next); }, []);
+  const saveTasks   = useCallback((next) => { api.putTasks(next); }, []);
+
+  const setAndSaveClients = (fn) => setClients((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; saveClients(next); return next; });
+  const setAndSaveTasks   = (fn) => setTasks((prev)   => { const next = typeof fn === "function" ? fn(prev) : fn; saveTasks(next);   return next; });
+
+  const updateClient = (name, patch) => setAndSaveClients((cs) => cs.map((c) => (c.name === name ? { ...c, ...patch } : c)));
+  const addTask    = (client, text) => setAndSaveTasks((ts) => [...ts, { id: uid(), client, text, priority: "Medium", due: "", deps: [], loom: "" }]);
+  const removeTask = (id)           => setAndSaveTasks((ts) => ts.filter((t) => t.id !== id).map((t) => ({ ...t, deps: t.deps.filter((d) => d !== id) })));
+  const updateTask = (id, patch)    => setAndSaveTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+
+  const logout = async () => { await api.logout().catch(() => {}); api.clearToken(); setUser(null); setReady(false); };
+
+  if (!user) return <AuthScreen onLogin={(u) => setUser(u)} />;
+  if (!ready) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "grid", placeItems: "center", fontFamily: FONT }}>
+      <div style={{ color: C.muted, fontSize: 15 }}>Loading…</div>
+    </div>
+  );
 
   return (
     <div style={{
@@ -918,7 +1032,7 @@ export default function Roster() {
                    ${C.bg}`,
     }}>
       <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
-        <Header />
+        <Header user={user} onLogout={logout} />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Overview" && <Overview setTab={setTab} clients={clients} tasks={tasks} />}
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} />}
