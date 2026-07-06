@@ -123,7 +123,7 @@ function StatBox({ dir, label, value }) {
 }
 
 function StatusChip({ status }) {
-  const s = STATUS[status];
+  const s = STATUS[status] || STATUS.neutral;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500,
@@ -133,6 +133,45 @@ function StatusChip({ status }) {
       <span style={{ width: 7, height: 7, borderRadius: 99, background: s.color }} />
       {s.label}
     </span>
+  );
+}
+
+function StatusPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+        <StatusChip status={value} />
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
+          background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 130,
+        }}>
+          {Object.entries(STATUS).map(([key, s]) => (
+            <button key={key} onClick={() => { onChange(key); setOpen(false); }} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+              background: value === key ? s.color + "18" : "transparent",
+              border: value === key ? `1px solid ${s.color}33` : "1px solid transparent",
+              borderRadius: 8, cursor: "pointer", textAlign: "left",
+              color: s.color, fontSize: 13, fontWeight: 500, fontFamily: FONT,
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: 99, background: s.color, flexShrink: 0 }} />
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -641,12 +680,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient }) {
         const d = daysOld(c.start); const col = daysColor(d);
         return <div style={{ fontSize: 14, fontWeight: 700, color: col }}>{d ?? "—"}<span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>d</span></div>;
       }
-      case "vibe": return (
-        <button onClick={() => { const o = ["good","neutral","at risk"]; updateClient(c.name, { status: o[(o.indexOf(c.status)+1)%o.length] }); }}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-          <StatusChip status={c.status} />
-        </button>
-      );
+      case "vibe": return <StatusPicker value={c.status} onChange={(v) => updateClient(c.name, { status: v })} />;
       case "adStatus": return <CycleBadge value={c.adStatus || "Not Live"} order={AD_STATUS_ORDER} styleFor={adStatusStyle} onChange={(v) => updateClient(c.name, { adStatus: v })} />;
       case "onboarding": return <CycleBadge value={c.onboarding || "Pending"} order={ONBOARDING_ORDER} styleFor={onboardingStyle} onChange={(v) => updateClient(c.name, { onboarding: v })} />;
       case "priority": return <CycleBadge value={c.priority || "Medium"} order={CLIENT_PRIORITY_ORDER} styleFor={priorityStyle} onChange={(v) => updateClient(c.name, { priority: v })} />;
