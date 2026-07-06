@@ -7,13 +7,20 @@ function hash(s) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
-  const { username, password } = req.body || {};
-  const user = await getUser(username);
-  if (!user || user.password !== hash(password))
-    return res.status(401).json({ error: "Incorrect username or password." });
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password)
+      return res.status(400).json({ error: "Username and password required." });
+    const user = await getUser(username);
+    if (!user || user.password !== hash(password))
+      return res.status(401).json({ error: "Incorrect username or password." });
 
-  const token = crypto.randomUUID();
-  await setToken(token, username);
-  await appendLog({ user: username, action: "logged_in", detail: `${user.name} logged in` });
-  res.json({ token, name: user.name, username: user.username });
+    const token = crypto.randomUUID();
+    await setToken(token, username);
+    await appendLog({ user: username, action: "logged_in", detail: `${user.name} logged in` });
+    res.json({ token, name: user.name, username: user.username });
+  } catch (err) {
+    console.error("login error:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  }
 }
