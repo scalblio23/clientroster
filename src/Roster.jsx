@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.80</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.81</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -494,7 +494,7 @@ const cellInput = (extra = {}) => ({
   color: C.text, fontFamily: FONT, width: "100%", ...extra,
 });
 
-const AD_STATUS_ORDER = ["Live", "Not Live"];
+const AD_STATUS_ORDER = ["Live", "Not Live", "Need to Get Live"];
 const PIF_MRR_ORDER = ["MRR", "PIF"];
 const ONBOARDING_ORDER = ["Onboard Complete", "Pending"];
 const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
@@ -502,7 +502,7 @@ const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
 
 const DEFAULT_COLORS = {
   vibe:       { "good": "#ff8a3d", "neutral": "#9aa0a8", "at risk": "#f0674a" },
-  adStatus:   { "Live": "#34d399", "Not Live": "#9aa0a8" },
+  adStatus:   { "Live": "#34d399", "Not Live": "#9aa0a8", "Need to Get Live": "#fbbf24" },
   pifMrr:     { "MRR": "#5b9bff", "PIF": "#a78bfa" },
   onboarding: { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
   priority:   { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
@@ -545,11 +545,18 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const [editingColor, setEditingColor] = useState(null);
   const [addingNew, setAddingNew] = useState(false);
   const [newOptDraft, setNewOptDraft] = useState("");
+  const [dropUp, setDropUp] = useState(false);
   const ref = useRef(null);
   const colorInputRef = useRef(null);
 
   useEffect(() => {
     if (!open) { setEditingColor(null); return; }
+    // determine whether to flip upward
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setDropUp(spaceBelow < 220);
+    }
     const close = (e) => { if (!ref.current?.contains(e.target)) { setOpen(false); } };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -573,7 +580,9 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
 
       {open && (
         <div onClick={(e) => e.stopPropagation()} style={{
-          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
+          position: "absolute",
+          ...(dropUp ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
+          left: 0, zIndex: 999,
           background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
           boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 190,
@@ -1430,9 +1439,14 @@ function ClientLogModal({ client, currentUser, onClose, onAddLog }) {
 /* ---------- simple chip picker (no color editing) ---------- */
 function ChipPicker({ value, options, colors, labelMap, onChange, placeholder = "Select…" }) {
   const [open, setOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
     if (!open) return;
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setDropUp(window.innerHeight - rect.bottom < 180);
+    }
     const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -1452,7 +1466,9 @@ function ChipPicker({ value, options, colors, labelMap, onChange, placeholder = 
       </button>
       {open && (
         <div style={{
-          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
+          position: "absolute",
+          ...(dropUp ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
+          left: 0, zIndex: 999,
           background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
           boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 160,
