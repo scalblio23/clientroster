@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.74</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.75</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -825,9 +825,12 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
           <button
             onClick={() => onOpenLog?.(c)}
             title="View client log"
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, borderRadius: 10, display: "flex" }}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, borderRadius: 10, display: "flex", position: "relative" }}
           >
-            <ClientIcon color={c.color} name={c.name} size={30} />
+            <ClientIcon color={enumColors.niche?.[c.niche] || c.color} name={c.name} size={30} />
+            {(c.logs?.length > 0) && (
+              <span style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: 99, background: C.orange, border: "2px solid #0e0e14", boxShadow: `0 0 6px ${C.orange}` }} />
+            )}
           </button>
           <BlurInput value={c.name} onCommit={(v) => updateClient(c.name, { name: v })}
             style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }} />
