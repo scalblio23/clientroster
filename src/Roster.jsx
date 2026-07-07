@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.76</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.77</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1109,7 +1109,13 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
   };
 
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
-  const activeViewName = savedViews.find((v) => v.sortKey === sortKey && v.sortDir === sortDir)?.name || null;
+  const activeViewName = savedViews.find((v) => {
+    if (v.sortKey !== sortKey || v.sortDir !== sortDir) return false;
+    const savedHidden = new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []);
+    if (savedHidden.size !== hiddenCols.size) return false;
+    for (const k of savedHidden) { if (!hiddenCols.has(k)) return false; }
+    return true;
+  })?.name || null;
 
   return (
     <>
