@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { api } from "./api.js";
-import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2 } from "lucide-react";
+import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2, LogOut } from "lucide-react";
 
 /* ---------- theme tokens (orange) ---------- */
 const C = {
@@ -261,9 +261,20 @@ function ClientCard({ c, tasks = [], onAdd, onRemove }) {
 }
 
 /* ---------- shell ---------- */
-function Header({ saveStatus }) {
+function Header({ saveStatus, user, onLogout }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const dot = saveStatus === "saving" ? C.orange : saveStatus === "saved" ? "#34d399" : saveStatus === "error" ? C.red : "transparent";
   const label = saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save failed" : "";
+  const initial = (user?.name || user?.username || "?")[0].toUpperCase();
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e) => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
+
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -282,22 +293,47 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.73</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.74</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button style={{
-          display: "inline-flex", alignItems: "center", gap: 7,
-          background: "rgba(255,255,255,0.05)", border: `1px solid ${C.cardBorder}`,
-          color: C.text, borderRadius: 999, padding: "8px 16px", fontSize: 14, cursor: "pointer",
-        }}>
-          <Pencil size={14} /> Edit
-        </button>
-        <span style={{
-          width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,0.08)",
-          border: `1px solid ${C.cardBorder}`, display: "grid", placeItems: "center",
-          color: C.text, fontSize: 14, fontWeight: 600,
-        }}>H</span>
+        <div ref={menuRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            style={{
+              width: 34, height: 34, borderRadius: 999,
+              background: menuOpen ? C.orangeSoft : "rgba(255,255,255,0.08)",
+              border: `1px solid ${menuOpen ? C.orangeSoftBorder : C.cardBorder}`,
+              display: "grid", placeItems: "center",
+              color: menuOpen ? C.orangeBright : C.text,
+              fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "background .15s, border-color .15s, color .15s",
+            }}
+          >
+            {initial}
+          </button>
+          {menuOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 8px)", right: 0,
+              ...GLASS, borderRadius: 14, minWidth: 180, padding: "6px 0",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999,
+            }}>
+              <div style={{ padding: "10px 16px 8px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>{user?.name || user?.username}</div>
+                {user?.name && user?.username && <div style={{ fontSize: 12, color: C.muted }}>@{user.username}</div>}
+              </div>
+              <button
+                onClick={() => { setMenuOpen(false); onLogout?.(); }}
+                style={{
+                  width: "100%", textAlign: "left", background: "none", border: "none",
+                  padding: "10px 16px", fontSize: 13.5, color: C.red, cursor: "pointer",
+                  fontFamily: FONT, display: "flex", alignItems: "center", gap: 8,
+                }}
+              >
+                <LogOut size={14} /> Log out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
