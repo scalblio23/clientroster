@@ -14,6 +14,11 @@ async function req(method, path, body) {
     headers: headers(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401) {
+    sessionStorage.removeItem("roster_token");
+    window.location.reload();
+    return;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(err.error || "Request failed");
