@@ -1,79 +1,49 @@
-import { put, list, get } from "@vercel/blob";
-
-async function readJson(key) {
-  try {
-    const { blobs } = await list({ prefix: key, limit: 1 });
-    if (!blobs.length) return null;
-    const result = await get(blobs[0].url, { access: "private" });
-    if (!result?.stream) return null;
-    const text = await new Response(result.stream).text();
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("readJson error:", key, e?.message);
-    return null;
-  }
-}
-
-async function writeJson(key, data) {
-  await put(key, JSON.stringify(data), {
-    access: "private",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
-}
+import { kv } from "@vercel/kv";
 
 export async function getUser(username) {
-  const users = (await readJson("roster/users.json")) ?? {};
-  return users[username] ?? null;
+  return await kv.hget("users", username);
 }
 
 export async function setUser(username, data) {
-  const users = (await readJson("roster/users.json")) ?? {};
-  users[username] = data;
-  await writeJson("roster/users.json", users);
+  await kv.hset("users", { [username]: data });
 }
 
 export async function listUsers() {
-  const users = (await readJson("roster/users.json")) ?? {};
+  const users = await kv.hgetall("users") ?? {};
   return Object.values(users).map((u) => ({ name: u.name, username: u.username }));
 }
 
 export async function getToken(token) {
-  const tokens = (await readJson("roster/tokens.json")) ?? {};
-  const entry = tokens[token];
+  const entry = await kv.hget("tokens", token);
   if (!entry) return null;
   if (entry.exp < Date.now()) return null;
   return entry.username;
 }
 
 export async function setToken(token, username) {
-  const tokens = (await readJson("roster/tokens.json")) ?? {};
-  tokens[token] = { username, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 };
-  await writeJson("roster/tokens.json", tokens);
+  await kv.hset("tokens", { [token]: { username, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 } });
 }
 
 export async function delToken(token) {
-  const tokens = (await readJson("roster/tokens.json")) ?? {};
-  delete tokens[token];
-  await writeJson("roster/tokens.json", tokens);
+  await kv.hdel("tokens", token);
 }
 
-export async function getSettings() { return (await readJson("roster/settings.json")) ?? {}; }
-export async function saveSettings(data) { await writeJson("roster/settings.json", data); }
+export async function getSettings() { return (await kv.get("settings")) ?? {}; }
+export async function saveSettings(data) { await kv.set("settings", data); }
 
-export async function getClients() { return (await readJson("roster/clients.json")) ?? []; }
-export async function saveClients(data) { await writeJson("roster/clients.json", data); }
-export async function getTasks() { return (await readJson("roster/tasks.json")) ?? []; }
-export async function saveTasks(data) { await writeJson("roster/tasks.json", data); }
+export async function getClients() { return (await kv.get("clients")) ?? []; }
+export async function saveClients(data) { await kv.set("clients", data); }
 
-export async function getLogs() { return (await readJson("roster/logs.json")) ?? []; }
+export async function getTasks() { return (await kv.get("tasks")) ?? []; }
+export async function saveTasks(data) { await kv.set("tasks", data); }
+
+export async function getLogs() { return (await kv.get("logs")) ?? []; }
 export async function appendLogs(entries) {
   if (!entries.length) return;
   const ts = Date.now();
-  const logs = (await readJson("roster/logs.json")) ?? [];
+  const logs = (await kv.get("logs")) ?? [];
   for (const e of entries) logs.unshift({ ...e, ts });
   if (logs.length > 200) logs.length = 200;
-  await writeJson("roster/logs.json", logs);
+  await kv.set("logs", logs);
 }
 export async function appendLog(entry) { return appendLogs([entry]); }
