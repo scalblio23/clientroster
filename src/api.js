@@ -46,6 +46,8 @@ export const api = {
   changePassword: (data) => req("POST", "/changepassword", data),
 
   saveToken: (token) => sessionStorage.setItem("roster_token", token),
-  clearToken: ()     => sessionStorage.removeItem("roster_token"),
+  clearToken: ()     => { sessionStorage.removeItem("roster_token"); sessionStorage.removeItem("roster_user"); },
   hasToken: ()       => !!sessionStorage.getItem("roster_token"),
+  saveUser: (u)      => sessionStorage.setItem("roster_user", JSON.stringify(u)),
+  loadUser: ()       => { try { return JSON.parse(sessionStorage.getItem("roster_user") || "null"); } catch { return null; } },
 };

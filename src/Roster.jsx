@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.72</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.73</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1973,6 +1973,7 @@ function AuthScreen({ onLogin }) {
         : api.login({ username: username.trim(), password });
       const user = await fn;
       api.saveToken(user.token);
+      api.saveUser({ name: user.name, username: user.username });
       onLogin(user);
     } catch (e) {
       setError(e.message);
@@ -2220,7 +2221,7 @@ function SettingsPage({ user }) {
 
 /* ---------- root ---------- */
 export default function Roster() {
-  const [user, setUser] = useState(() => api.hasToken() ? { name: "", username: "" } : null);
+  const [user, setUser] = useState(() => api.hasToken() ? (api.loadUser() || { name: "", username: "" }) : null);
   const [tab, setTab] = useState("Clients");
   const [clients, setClients] = useState(CLIENTS);
   const [tasks, setTasks]     = useState(SEED_TASKS);
