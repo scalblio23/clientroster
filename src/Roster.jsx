@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.78</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.79</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1021,45 +1021,26 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
   const [savingView, setSavingView] = useState(false);
   const [viewDraft, setViewDraft] = useState("");
 
-  // helpers to load default view fields
-  const _loadDefault = (field, fallback) => {
-    try {
-      const def = localStorage.getItem("roster_default_view");
-      if (!def) return fallback;
-      const views = JSON.parse(localStorage.getItem("roster_views") || "[]");
-      const v = views.find((x) => x.name === def);
-      return v?.[field] ?? fallback;
-    } catch { return fallback; }
+  // All view state inits from a single persisted snapshot so reload always restores exactly
+  const _initViewState = () => {
+    try { return JSON.parse(localStorage.getItem("roster_view_state") || "null"); } catch { return null; }
+  };
+  const _vs = _initViewState();
+
+  const mergeColOrder = (saved) => {
+    if (!Array.isArray(saved) || !saved.every((k) => ALL_COL_KEYS.includes(k))) return ALL_COL_KEYS;
+    return [...saved, ...ALL_COL_KEYS.filter((k) => !saved.includes(k))];
   };
 
-  // column order — init from default view if set, else localStorage
-  const [colOrder, setColOrder] = useState(() => {
-    const defOrder = _loadDefault("colOrder", null);
-    if (Array.isArray(defOrder) && defOrder.every((k) => ALL_COL_KEYS.includes(k))) {
-      const merged = [...defOrder, ...ALL_COL_KEYS.filter((k) => !defOrder.includes(k))];
-      return merged;
-    }
-    try {
-      const saved = JSON.parse(localStorage.getItem("colOrder") || "null");
-      if (Array.isArray(saved) && saved.every((k) => ALL_COL_KEYS.includes(k))) {
-        return [...saved, ...ALL_COL_KEYS.filter((k) => !saved.includes(k))];
-      }
-    } catch {}
-    return ALL_COL_KEYS;
-  });
-  useEffect(() => { localStorage.setItem("colOrder", JSON.stringify(colOrder)); }, [colOrder]);
+  const [sortKey,   setSortKey]   = useState(() => _vs?.sortKey   ?? null);
+  const [sortDir,   setSortDir]   = useState(() => _vs?.sortDir   ?? "asc");
+  const [colOrder,  setColOrder]  = useState(() => mergeColOrder(_vs?.colOrder));
+  const [hiddenCols, setHiddenCols] = useState(() => new Set(Array.isArray(_vs?.hiddenCols) ? _vs.hiddenCols : []));
 
-  // hidden columns — init from default view if set, else localStorage
-  const [hiddenCols, setHiddenCols] = useState(() => {
-    const defHidden = _loadDefault("hiddenCols", null);
-    if (Array.isArray(defHidden)) return new Set(defHidden);
-    try {
-      const saved = JSON.parse(localStorage.getItem("hiddenCols") || "null");
-      if (Array.isArray(saved)) return new Set(saved);
-    } catch {}
-    return new Set();
-  });
-  useEffect(() => { localStorage.setItem("hiddenCols", JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+  // Persist the full view state any time any part changes
+  useEffect(() => {
+    localStorage.setItem("roster_view_state", JSON.stringify({ sortKey, sortDir, colOrder, hiddenCols: [...hiddenCols] }));
+  }, [sortKey, sortDir, colOrder, hiddenCols]);
 
   const toggleCol = (key) => setHiddenCols((prev) => {
     const next = new Set(prev);
@@ -1074,11 +1055,8 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
     return () => document.removeEventListener("mousedown", close);
   }, [propOpen]);
 
-  const [sortKey, setSortKey] = useState(() => _loadDefault("sortKey", null));
-  const [sortDir, setSortDir] = useState(() => _loadDefault("sortDir", "asc"));
-
   const saveView = () => {
-    const name = viewDraft.trim() || suggestViewName(sortKey, sortDir);
+    const name = viewDraft.trim() || suggestViewName(sortKey, sortDir) || "My View";
     const next = [...savedViews.filter((v) => v.name !== name), { name, sortKey, sortDir, colOrder, hiddenCols: [...hiddenCols] }];
     setSavedViews(next);
     localStorage.setItem("roster_views", JSON.stringify(next));
@@ -1109,12 +1087,8 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
   const applyView = (v) => {
     setSortKey(v.sortKey ?? null);
     setSortDir(v.sortDir ?? "asc");
-    if (Array.isArray(v.colOrder) && v.colOrder.every((k) => ALL_COL_KEYS.includes(k))) {
-      // merge any new columns (added since view was saved) to the end
-      const merged = [...v.colOrder, ...ALL_COL_KEYS.filter((k) => !v.colOrder.includes(k))];
-      setColOrder(merged);
-    }
-    setHiddenCols(Array.isArray(v.hiddenCols) ? new Set(v.hiddenCols) : new Set());
+    setColOrder(mergeColOrder(v.colOrder));
+    setHiddenCols(new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []));
   };
 
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
