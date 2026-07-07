@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.69</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.70</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -697,7 +697,14 @@ const HDR_H      = 42;
 
 function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir }) {
   // colOrder excludes "name" — it lives in the fixed left pane
-  const [colOrder, setColOrder] = useState(COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key));
+  const defaultColOrder = COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key);
+  const [colOrder, setColOrder] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("colOrder") || "null");
+      if (Array.isArray(saved) && saved.length === defaultColOrder.length && saved.every((k) => defaultColOrder.includes(k))) return saved;
+    } catch {}
+    return defaultColOrder;
+  });
   const [dropIdx, setDropIdx] = useState(null);
   const draggingKey = useRef(null);
   const didDrag = useRef(false);
@@ -765,6 +772,8 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [colOrder]);
+
+  useEffect(() => { localStorage.setItem("colOrder", JSON.stringify(colOrder)); }, [colOrder]);
 
   useEffect(() => {
     const track = (e) => { window._lastMouseX = e.clientX; };
