@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.64</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.65</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2147,21 +2147,15 @@ export default function Roster() {
 
   const flushClients = useCallback(() => {
     clientSaveTimer.current = null;
-    const names = Object.keys(pendingClientPatches.current);
+    if (!Object.keys(pendingClientPatches.current).length) return;
     const changes = pendingClientChanges.current;
     pendingClientPatches.current = {};
     pendingClientChanges.current = [];
-    if (!names.length) return;
-    // Send the full current client object — avoids stale-read race on the server
-    const current = clientsRef.current;
     showSaveStatus("saving");
-    Promise.all(names.map((name, idx) => {
-      const full = current.find((c) => c.name === name);
-      if (!full) return Promise.resolve();
-      return api.patchClient({ name, patch: full, changes: idx === 0 ? changes : [] });
-    }))
+    // PUT the full array — server does one write, no read
+    api.putClients({ clients: clientsRef.current, changes })
       .then(() => showSaveStatus("saved"))
-      .catch((e) => { console.error("patchClient failed:", e?.message); showSaveStatus("error"); });
+      .catch((e) => { console.error("saveClients failed:", e?.message); showSaveStatus("error"); });
   }, [showSaveStatus]);
 
   const flushTasks = useCallback(() => {
@@ -2176,19 +2170,14 @@ export default function Roster() {
     const onUnload = () => {
       if (!clientSaveTimer.current) return;
       clearTimeout(clientSaveTimer.current);
-      const names = Object.keys(pendingClientPatches.current);
+      if (!Object.keys(pendingClientPatches.current).length) return;
       const token = sessionStorage.getItem("roster_token") || "";
-      const current = clientsRef.current;
-      names.forEach((name) => {
-        const full = current.find((c) => c.name === name);
-        if (!full) return;
-        try {
-          navigator.sendBeacon("/api/clients", new Blob(
-            [JSON.stringify({ name, patch: full, changes: [], token })],
-            { type: "application/json" }
-          ));
-        } catch {}
-      });
+      try {
+        navigator.sendBeacon("/api/clients", new Blob(
+          [JSON.stringify({ clients: clientsRef.current, changes: [], token })],
+          { type: "application/json" }
+        ));
+      } catch {}
     };
     window.addEventListener("beforeunload", onUnload);
     return () => window.removeEventListener("beforeunload", onUnload);

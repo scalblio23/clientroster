@@ -1,9 +1,10 @@
 import { getToken, getClients, saveClients, appendLogs } from "./_db.js";
 
 async function auth(req, res) {
-  const token = req.headers["x-token"] || req.body?.token;
-  if (!token || !await getToken(token)) { res.status(401).json({ error: "Unauthorised" }); return null; }
-  return await getToken(token);
+  const token = req.headers["x-token"] || req.body?.token || "";
+  const username = await getToken(token);
+  if (!username) { res.status(401).json({ error: "Unauthorised" }); return null; }
+  return username;
 }
 
 export default async function handler(req, res) {
