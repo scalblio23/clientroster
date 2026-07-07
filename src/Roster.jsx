@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.75</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.76</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -732,22 +732,13 @@ const NAME_COL_W = 206;
 const ROW_H      = 54;
 const HDR_H      = 42;
 
-function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir, onOpenLog }) {
-  // colOrder excludes "name" — it lives in the fixed left pane
-  const defaultColOrder = COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key);
-  const [colOrder, setColOrder] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("colOrder") || "null");
-      if (Array.isArray(saved) && saved.length === defaultColOrder.length && saved.every((k) => defaultColOrder.includes(k))) return saved;
-    } catch {}
-    return defaultColOrder;
-  });
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir, onOpenLog, colOrder, setColOrder, hiddenCols }) {
   const [dropIdx, setDropIdx] = useState(null);
   const draggingKey = useRef(null);
   const didDrag = useRef(false);
   const headerRef = useRef(null);
 
-  const cols = colOrder.map((k) => COL_DEFS.find((d) => d.key === k));
+  const cols = colOrder.map((k) => COL_DEFS.find((d) => d.key === k)).filter((c) => c && !hiddenCols.has(c.key));
   const grid = cols.map((c) => c.width).join(" ");
 
   const handleHeaderClick = (key) => {
@@ -809,8 +800,6 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [colOrder]);
-
-  useEffect(() => { localStorage.setItem("colOrder", JSON.stringify(colOrder)); }, [colOrder]);
 
   useEffect(() => {
     const track = (e) => { window._lastMouseX = e.clientX; };
@@ -1017,15 +1006,53 @@ function suggestViewName(sortKey, sortDir) {
   return `${arrow} by ${label}`;
 }
 
+const ALL_COL_KEYS = COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key);
+
 function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption, currentUser }) {
   const [logClient, setLogClient] = useState(null);
   const [view, setView] = useState("table");
+  const [propOpen, setPropOpen] = useState(false);
+  const propRef = useRef(null);
+
   const [savedViews, setSavedViews] = useState(() => {
     try { return JSON.parse(localStorage.getItem("roster_views") || "[]"); } catch { return []; }
   });
   const [defaultViewName, setDefaultViewName] = useState(() => localStorage.getItem("roster_default_view") || null);
   const [savingView, setSavingView] = useState(false);
   const [viewDraft, setViewDraft] = useState("");
+
+  // column order — persisted to localStorage
+  const [colOrder, setColOrder] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("colOrder") || "null");
+      if (Array.isArray(saved) && saved.length === ALL_COL_KEYS.length && saved.every((k) => ALL_COL_KEYS.includes(k))) return saved;
+    } catch {}
+    return ALL_COL_KEYS;
+  });
+  useEffect(() => { localStorage.setItem("colOrder", JSON.stringify(colOrder)); }, [colOrder]);
+
+  // hidden columns — persisted to localStorage
+  const [hiddenCols, setHiddenCols] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("hiddenCols") || "null");
+      if (Array.isArray(saved)) return new Set(saved);
+    } catch {}
+    return new Set();
+  });
+  useEffect(() => { localStorage.setItem("hiddenCols", JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+
+  const toggleCol = (key) => setHiddenCols((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  useEffect(() => {
+    if (!propOpen) return;
+    const close = (e) => { if (!propRef.current?.contains(e.target)) setPropOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [propOpen]);
 
   // Apply default view on first mount
   const [sortKey, setSortKey] = useState(() => {
@@ -1047,7 +1074,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
 
   const saveView = () => {
     const name = viewDraft.trim() || suggestViewName(sortKey, sortDir);
-    const next = [...savedViews.filter((v) => v.name !== name), { name, sortKey, sortDir }];
+    const next = [...savedViews.filter((v) => v.name !== name), { name, sortKey, sortDir, colOrder, hiddenCols: [...hiddenCols] }];
     setSavedViews(next);
     localStorage.setItem("roster_views", JSON.stringify(next));
     setSavingView(false);
@@ -1066,7 +1093,6 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
 
   const setDefault = (name) => {
     if (defaultViewName === name) {
-      // toggle off — revert to no default
       setDefaultViewName(null);
       localStorage.removeItem("roster_default_view");
     } else {
@@ -1075,7 +1101,12 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
     }
   };
 
-  const applyView = (v) => { setSortKey(v.sortKey); setSortDir(v.sortDir); };
+  const applyView = (v) => {
+    setSortKey(v.sortKey);
+    setSortDir(v.sortDir);
+    if (Array.isArray(v.colOrder) && v.colOrder.every((k) => ALL_COL_KEYS.includes(k))) setColOrder(v.colOrder);
+    if (Array.isArray(v.hiddenCols)) setHiddenCols(new Set(v.hiddenCols));
+  };
 
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
   const activeViewName = savedViews.find((v) => v.sortKey === sortKey && v.sortDir === sortDir)?.name || null;
@@ -1176,7 +1207,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
           })}
 
           {/* save view button / inline input */}
-          {sortKey && !savingView && (
+          {!savingView && (
             <button
               onClick={() => { setSavingView(true); setViewDraft(suggestViewName(sortKey, sortDir)); }}
               style={{
@@ -1204,6 +1235,64 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
               <button onClick={() => { setSavingView(false); setViewDraft(""); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
             </div>
           )}
+
+          {/* property visibility */}
+          <div ref={propRef} style={{ position: "relative", marginLeft: "auto" }}>
+            <button
+              onClick={() => setPropOpen((o) => !o)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: propOpen ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                border: `1px solid ${propOpen ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                color: propOpen ? C.orangeBright : C.muted,
+                borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
+                cursor: "pointer", fontFamily: FONT, transition: "background .15s",
+              }}
+            >
+              <Check size={12} /> Properties {hiddenCols.size > 0 && <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>{ALL_COL_KEYS.length - hiddenCols.size}/{ALL_COL_KEYS.length}</span>}
+            </button>
+            {propOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                ...GLASS, borderRadius: 16, minWidth: 220, padding: "10px 0",
+                boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999,
+              }}>
+                <div style={{ padding: "4px 14px 10px", fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>Property Visibility</div>
+                <div style={{ maxHeight: 360, overflowY: "auto", padding: "6px 0" }} className="glass-scroll">
+                  {colOrder.map((key) => {
+                    const def = COL_DEFS.find((d) => d.key === key);
+                    if (!def) return null;
+                    const visible = !hiddenCols.has(key);
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => toggleCol(key)}
+                        style={{
+                          width: "100%", textAlign: "left", background: "none", border: "none",
+                          padding: "8px 14px", fontSize: 13, color: visible ? C.text : C.faint,
+                          cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: 10,
+                        }}
+                      >
+                        <span style={{
+                          width: 16, height: 16, borderRadius: 5, flexShrink: 0,
+                          background: visible ? C.orange : "rgba(255,255,255,0.08)",
+                          border: `1px solid ${visible ? C.orange : "rgba(255,255,255,0.15)"}`,
+                          display: "grid", placeItems: "center",
+                        }}>
+                          {visible && <Check size={10} color="#000" strokeWidth={3} />}
+                        </span>
+                        {def.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ padding: "8px 14px 4px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8 }}>
+                  <button onClick={() => setHiddenCols(new Set())} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.text, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Show all</button>
+                  <button onClick={() => setHiddenCols(new Set(ALL_COL_KEYS))} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Hide all</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {view === "cards" ? (
@@ -1218,7 +1307,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} />
         )}
       </div>
       {logClient && (
