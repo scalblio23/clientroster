@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.62</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.63</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2168,7 +2168,21 @@ export default function Roster() {
 
   // Flush any unsaved changes before the tab/window closes
   useEffect(() => {
-    const onUnload = () => { if (clientSaveTimer.current) { clearTimeout(clientSaveTimer.current); flushClients(); } };
+    const onUnload = () => {
+      if (!clientSaveTimer.current) return;
+      clearTimeout(clientSaveTimer.current);
+      const patches = pendingClientPatches.current;
+      const names = Object.keys(patches);
+      const token = sessionStorage.getItem("roster_token") || "";
+      names.forEach((name) => {
+        try {
+          navigator.sendBeacon("/api/clients", new Blob(
+            [JSON.stringify({ name, patch: patches[name], changes: [], token })],
+            { type: "application/json" }
+          ));
+        } catch {}
+      });
+    };
     window.addEventListener("beforeunload", onUnload);
     return () => window.removeEventListener("beforeunload", onUnload);
   }, [flushClients]);
@@ -2193,7 +2207,7 @@ export default function Roster() {
     pendingClientPatches.current = { ...pendingClientPatches.current, [name]: { ...(pendingClientPatches.current[name] || {}), ...patch } };
     if (changes.length) pendingClientChanges.current = [...pendingClientChanges.current, ...changes];
     if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
-    clientSaveTimer.current = setTimeout(flushClients, 500);
+    clientSaveTimer.current = setTimeout(flushClients, 0);
   };
   const addTask = (client, text, person = "", status = "To Do", priority = "Medium", due = "") => {
     const newTask = { id: uid(), client, text, priority, due, deps: [], loom: "", person, status };
