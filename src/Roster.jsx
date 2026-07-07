@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.67</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.68</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2147,15 +2147,17 @@ export default function Roster() {
 
   const flushClients = useCallback(() => {
     clientSaveTimer.current = null;
-    if (!Object.keys(pendingClientPatches.current).length) return;
+    const patches = pendingClientPatches.current;
+    if (!Object.keys(patches).length) return;
     const changes = pendingClientChanges.current;
     pendingClientPatches.current = {};
     pendingClientChanges.current = [];
+    // Apply patches onto the ref ourselves — can't rely on useEffect having run yet
+    const clients = clientsRef.current.map((c) => patches[c.name] ? { ...c, ...patches[c.name] } : c);
     showSaveStatus("saving");
-    // PUT the full array — server does one write, no read
-    api.putClients({ clients: clientsRef.current, changes })
+    api.putClients({ clients, changes })
       .then(() => showSaveStatus("saved"))
-      .catch((e) => { console.error("saveClients failed:", e?.message, e); showSaveStatus("error"); });
+      .catch((e) => { console.error("saveClients failed:", e?.message); showSaveStatus("error"); });
   }, [showSaveStatus]);
 
   const flushTasks = useCallback(() => {
@@ -2170,11 +2172,13 @@ export default function Roster() {
     const onUnload = () => {
       if (!clientSaveTimer.current) return;
       clearTimeout(clientSaveTimer.current);
-      if (!Object.keys(pendingClientPatches.current).length) return;
+      const patches = pendingClientPatches.current;
+      if (!Object.keys(patches).length) return;
+      const clients = clientsRef.current.map((c) => patches[c.name] ? { ...c, ...patches[c.name] } : c);
       const token = sessionStorage.getItem("roster_token") || "";
       try {
         navigator.sendBeacon("/api/clients", new Blob(
-          [JSON.stringify({ clients: clientsRef.current, changes: [], token })],
+          [JSON.stringify({ clients, changes: [], token })],
           { type: "application/json" }
         ));
       } catch {}
