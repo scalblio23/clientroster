@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.79</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.80</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -495,6 +495,7 @@ const cellInput = (extra = {}) => ({
 });
 
 const AD_STATUS_ORDER = ["Live", "Not Live"];
+const PIF_MRR_ORDER = ["MRR", "PIF"];
 const ONBOARDING_ORDER = ["Onboard Complete", "Pending"];
 const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
 const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
@@ -502,6 +503,7 @@ const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
 const DEFAULT_COLORS = {
   vibe:       { "good": "#ff8a3d", "neutral": "#9aa0a8", "at risk": "#f0674a" },
   adStatus:   { "Live": "#34d399", "Not Live": "#9aa0a8" },
+  pifMrr:     { "MRR": "#5b9bff", "PIF": "#a78bfa" },
   onboarding: { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
   priority:   { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
   callType:   { "Callout": "#fbbf24", "Booking": "#34d399", "Transfer": "#5b9bff", "Callback": "#c084fc" },
@@ -684,6 +686,7 @@ const COL_DEFS = [
   { key: "statusReport",  label: "Status Report",  width: "220px" },
   { key: "onboarding", label: "Onboarding",  width: "170px" },
   { key: "priority",   label: "Priority",    width: "100px" },
+  { key: "pifMrr",     label: "PIF / MRR",   width: "110px" },
   { key: "mrr",        label: "MRR",         width: "90px"  },
   { key: "adSpend",    label: "Ad Spend",    width: "100px" },
   { key: "leads",      label: "Leads",       width: "80px"  },
@@ -707,6 +710,7 @@ function SortIcon({ dir }) {
 function clientSortVal(key, c) {
   switch (key) {
     case "name":       return c.name?.toLowerCase() ?? "";
+    case "pifMrr":     return c.pifMrr ?? "";
     case "mrr":        return c.mrr ?? 0;
     case "adSpend":    return c.adSpend ?? 0;
     case "leads":      return c.leads ?? 0;
@@ -838,6 +842,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
       case "statusReport": return <BlurInput value={c.statusReport || ""} onCommit={(v) => updateClient(c.name, { statusReport: v })} placeholder="Status…" style={{ ...cellInput({ fontSize: 13 }) }} />;
       case "onboarding": return <SelectPicker field="onboarding" value={c.onboarding || "Pending"} options={ONBOARDING_ORDER} colors={enumColors.onboarding} onChangeValue={(v) => updateClient(c.name, { onboarding: v })} onChangeColor={updateEnumColor} />;
       case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
+      case "pifMrr": return <SelectPicker field="pifMrr" value={c.pifMrr || "MRR"} options={PIF_MRR_ORDER} colors={enumColors.pifMrr || DEFAULT_COLORS.pifMrr} onChangeValue={(v) => updateClient(c.name, { pifMrr: v })} onChangeColor={updateEnumColor} />;
       case "mrr": return <BlurInput type="number" value={c.mrr ?? 0} onCommit={(v) => updateClient(c.name, { mrr: Number(v) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
       case "adSpend": return <BlurInput type="number" value={c.adSpend ?? 0} onCommit={(v) => updateClient(c.name, { adSpend: Number(v) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
       case "leads": return <BlurInput type="number" value={c.leads ?? 0} onCommit={(v) => updateClient(c.name, { leads: Number(v) })} style={{ ...cellInput({ fontSize: 13, fontWeight: 600 }) }} />;
@@ -2450,7 +2455,7 @@ export default function Roster() {
 
   const setAndSaveTasks = (fn, changeEntry) => setTasks((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; scheduleTaskSave(changeEntry || null); return next; });
 
-  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", statusReport: "Status Report", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
+  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", statusReport: "Status Report", pifMrr: "PIF / MRR", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
 
   // No side effects inside setState — use clientsRef for old values
   const updateClient = (name, patch) => {
