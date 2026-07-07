@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.70</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.71</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -644,7 +644,8 @@ const COL_DEFS = [
   { key: "notes",      label: "Notes",       width: "280px" },
   { key: "daysOld",    label: "Days Old",    width: "80px"  },
   { key: "vibe",       label: "Client Vibe", width: "120px" },
-  { key: "adStatus",   label: "Ad Status",   width: "110px" },
+  { key: "adStatus",      label: "Ad Status",      width: "110px" },
+  { key: "statusReport",  label: "Status Report",  width: "220px" },
   { key: "onboarding", label: "Onboarding",  width: "170px" },
   { key: "priority",   label: "Priority",    width: "100px" },
   { key: "mrr",        label: "MRR",         width: "90px"  },
@@ -800,6 +801,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
       }
       case "vibe": return <SelectPicker field="vibe" value={c.status || "neutral"} options={VIBE_OPTIONS} colors={enumColors.vibe} onChangeValue={(v) => updateClient(c.name, { status: v })} onChangeColor={updateEnumColor} labelMap={VIBE_LABELS} />;
       case "adStatus": return <SelectPicker field="adStatus" value={c.adStatus || "Not Live"} options={AD_STATUS_ORDER} colors={enumColors.adStatus} onChangeValue={(v) => updateClient(c.name, { adStatus: v })} onChangeColor={updateEnumColor} />;
+      case "statusReport": return <BlurInput value={c.statusReport || ""} onCommit={(v) => updateClient(c.name, { statusReport: v })} placeholder="Status…" style={{ ...cellInput({ fontSize: 13 }) }} />;
       case "onboarding": return <SelectPicker field="onboarding" value={c.onboarding || "Pending"} options={ONBOARDING_ORDER} colors={enumColors.onboarding} onChangeValue={(v) => updateClient(c.name, { onboarding: v })} onChangeColor={updateEnumColor} />;
       case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
       case "mrr": return <BlurInput type="number" value={c.mrr ?? 0} onCommit={(v) => updateClient(c.name, { mrr: Number(v) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
@@ -2204,7 +2206,7 @@ export default function Roster() {
 
   const setAndSaveTasks = (fn, changeEntry) => setTasks((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; scheduleTaskSave(changeEntry || null); return next; });
 
-  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
+  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", statusReport: "Status Report", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
 
   // No side effects inside setState — use clientsRef for old values
   const updateClient = (name, patch) => {
