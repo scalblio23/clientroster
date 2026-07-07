@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.63</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.64</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2091,6 +2091,8 @@ export default function Roster() {
   const [ready, setReady]     = useState(false);
   const [enumColors, setEnumColors] = useState(() => ({ ...DEFAULT_COLORS }));
   const [nicheOptions, setNicheOptions] = useState(DEFAULT_NICHE_OPTIONS);
+  const enumColorsRef = useRef({ ...DEFAULT_COLORS });
+  const nicheOptionsRef = useRef(DEFAULT_NICHE_OPTIONS);
   const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
   const saveStatusTimer = useRef(null);
 
@@ -2106,8 +2108,8 @@ export default function Roster() {
           api.putClients({ clients: CLIENTS, changes: [] }).catch(() => {});
         }
         if (t.length) setTasks(t);
-        if (s?.enumColors) setEnumColors((prev) => ({ ...prev, ...s.enumColors }));
-        if (s?.nicheOptions?.length) setNicheOptions(s.nicheOptions);
+        if (s?.enumColors) { const merged = { ...DEFAULT_COLORS, ...s.enumColors }; setEnumColors(merged); enumColorsRef.current = merged; }
+        if (s?.nicheOptions?.length) { setNicheOptions(s.nicheOptions); nicheOptionsRef.current = s.nicheOptions; }
         setReady(true);
       })
       .catch(() => setReady(true));
@@ -2145,16 +2147,19 @@ export default function Roster() {
 
   const flushClients = useCallback(() => {
     clientSaveTimer.current = null;
-    const patches = pendingClientPatches.current;
+    const names = Object.keys(pendingClientPatches.current);
     const changes = pendingClientChanges.current;
     pendingClientPatches.current = {};
     pendingClientChanges.current = [];
-    const names = Object.keys(patches);
     if (!names.length) return;
+    // Send the full current client object — avoids stale-read race on the server
+    const current = clientsRef.current;
     showSaveStatus("saving");
-    Promise.all(names.map((name, idx) =>
-      api.patchClient({ name, patch: patches[name], changes: idx === 0 ? changes : [] })
-    ))
+    Promise.all(names.map((name, idx) => {
+      const full = current.find((c) => c.name === name);
+      if (!full) return Promise.resolve();
+      return api.patchClient({ name, patch: full, changes: idx === 0 ? changes : [] });
+    }))
       .then(() => showSaveStatus("saved"))
       .catch((e) => { console.error("patchClient failed:", e?.message); showSaveStatus("error"); });
   }, [showSaveStatus]);
@@ -2171,13 +2176,15 @@ export default function Roster() {
     const onUnload = () => {
       if (!clientSaveTimer.current) return;
       clearTimeout(clientSaveTimer.current);
-      const patches = pendingClientPatches.current;
-      const names = Object.keys(patches);
+      const names = Object.keys(pendingClientPatches.current);
       const token = sessionStorage.getItem("roster_token") || "";
+      const current = clientsRef.current;
       names.forEach((name) => {
+        const full = current.find((c) => c.name === name);
+        if (!full) return;
         try {
           navigator.sendBeacon("/api/clients", new Blob(
-            [JSON.stringify({ name, patch: patches[name], changes: [], token })],
+            [JSON.stringify({ name, patch: full, changes: [], token })],
             { type: "application/json" }
           ));
         } catch {}
@@ -2226,7 +2233,8 @@ export default function Roster() {
   const updateEnumColor = useCallback((field, option, hex) => {
     setEnumColors((prev) => {
       const next = { ...prev, [field]: { ...prev[field], [option]: hex } };
-      api.getSettings().then((s) => api.putSettings({ ...s, enumColors: next })).catch(() => {});
+      enumColorsRef.current = next;
+      api.putSettings({ enumColors: next, nicheOptions: nicheOptionsRef.current }).catch(() => {});
       return next;
     });
   }, []);
@@ -2237,7 +2245,9 @@ export default function Roster() {
       const next = [...prev, label];
       setEnumColors((ec) => {
         const nextColors = { ...ec, niche: { ...ec.niche, [label]: "#9aa0a8" } };
-        api.getSettings().then((s) => api.putSettings({ ...s, enumColors: nextColors, nicheOptions: next })).catch(() => {});
+        enumColorsRef.current = nextColors;
+        nicheOptionsRef.current = next;
+        api.putSettings({ enumColors: nextColors, nicheOptions: next }).catch(() => {});
         return nextColors;
       });
       return next;
