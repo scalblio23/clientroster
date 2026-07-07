@@ -282,7 +282,7 @@ function Header({ saveStatus }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.71</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.72</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -696,7 +696,7 @@ const NAME_COL_W = 206;
 const ROW_H      = 54;
 const HDR_H      = 42;
 
-function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir }) {
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir, onOpenLog }) {
   // colOrder excludes "name" — it lives in the fixed left pane
   const defaultColOrder = COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key);
   const [colOrder, setColOrder] = useState(() => {
@@ -786,7 +786,13 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
     switch (colKey) {
       case "name": return (
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <ClientIcon color={c.color} name={c.name} size={30} />
+          <button
+            onClick={() => onOpenLog?.(c)}
+            title="View client log"
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, borderRadius: 10, display: "flex" }}
+          >
+            <ClientIcon color={c.color} name={c.name} size={30} />
+          </button>
           <BlurInput value={c.name} onCommit={(v) => updateClient(c.name, { name: v })}
             style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }} />
         </div>
@@ -972,7 +978,8 @@ function suggestViewName(sortKey, sortDir) {
   return `${arrow} by ${label}`;
 }
 
-function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption }) {
+function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption, currentUser }) {
+  const [logClient, setLogClient] = useState(null);
   const [view, setView] = useState("table");
   const [savedViews, setSavedViews] = useState(() => {
     try { return JSON.parse(localStorage.getItem("roster_views") || "[]"); } catch { return []; }
@@ -1172,10 +1179,129 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} />
         )}
       </div>
+      {logClient && (
+        <ClientLogModal
+          client={clients.find((c) => c.name === logClient.name) || logClient}
+          currentUser={currentUser}
+          onClose={() => setLogClient(null)}
+          onAddLog={(text) => {
+            const entry = { text, user: currentUser, ts: Date.now() };
+            const existing = clients.find((c) => c.name === logClient.name);
+            const logs = [...(existing?.logs || []), entry];
+            updateClient(logClient.name, { logs });
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/* ---------- client log modal ---------- */
+function ClientLogModal({ client, currentUser, onClose, onAddLog }) {
+  const [text, setText] = useState("");
+  const bottomRef = useRef(null);
+  const logs = client.logs || [];
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs.length]);
+
+  const submit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAddLog(trimmed);
+    setText("");
+  };
+
+  const fmtDate = (ts) => {
+    const d = new Date(ts);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.floor(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+    >
+      <div style={{ ...GLASS, borderRadius: 20, width: "100%", maxWidth: 520, maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <ClientIcon color={client.color} name={client.name} size={36} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{client.name}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>Client Log</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, display: "grid", placeItems: "center", padding: 4, borderRadius: 8 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* log feed */}
+        <div className="glass-scroll" style={{ flex: 1, overflowY: "auto", padding: "16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {logs.length === 0 && (
+            <div style={{ textAlign: "center", color: C.faint, fontSize: 13, margin: "auto 0", padding: "32px 0" }}>No logs yet. Add the first one below.</div>
+          )}
+          {logs.map((entry, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 8, background: C.orangeSoft, border: `1px solid ${C.orangeSoftBorder}`, display: "grid", placeItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.orangeBright }}>{(entry.user || "?")[0].toUpperCase()}</span>
+                </div>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: C.text }}>{entry.user || "Unknown"}</span>
+                <span style={{ fontSize: 11, color: C.faint, marginLeft: "auto" }}>{fmtDate(entry.ts)}</span>
+              </div>
+              <div style={{ marginLeft: 34, fontSize: 13.5, color: C.text, lineHeight: 1.5, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 12px", border: "1px solid rgba(255,255,255,0.07)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                {entry.text}
+              </div>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* composer */}
+        <div style={{ padding: "14px 22px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10, alignItems: "flex-end" }}>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            placeholder="Add a log entry… (Enter to post, Shift+Enter for newline)"
+            rows={2}
+            style={{
+              flex: 1, resize: "none", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 12, color: C.text, fontSize: 13.5, padding: "10px 14px", fontFamily: FONT,
+              outline: "none", lineHeight: 1.5,
+            }}
+          />
+          <button
+            onClick={submit}
+            disabled={!text.trim()}
+            style={{
+              background: text.trim() ? C.orange : "rgba(255,255,255,0.08)", border: "none", borderRadius: 12,
+              color: text.trim() ? "#000" : C.faint, fontWeight: 700, fontSize: 13.5, padding: "10px 18px",
+              cursor: text.trim() ? "pointer" : "default", fontFamily: FONT, transition: "background .15s, color .15s", flexShrink: 0,
+            }}
+          >
+            Post
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2287,7 +2413,7 @@ export default function Roster() {
       <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
         <Header user={user} onLogout={logout} saveStatus={saveStatus} />
         <Tabs tab={tab} setTab={setTab} />
-        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} />}
+        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
         {tab === "Call Schedule" && <CallSchedulePage clients={clients} schedule={schedule} setSchedule={saveSchedule} />}
         {tab === "Settings" && <SettingsPage user={user} />}
