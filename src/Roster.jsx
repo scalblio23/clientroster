@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.87</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.88</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2226,8 +2226,8 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
           }
         />
 
-        <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
-          <div className="glass-scroll" style={{ overflowX: "auto" }}>
+        <div style={{ ...GLASS, borderRadius: 20 }}>
+          <div className="glass-scroll" style={{ overflowX: "auto", overflowY: "auto", maxHeight: "72vh", borderRadius: 20 }}>
             <div style={{ minWidth: CLABEL_W + SLABEL_W + weeks.length * WEEK_W }}>
 
               {/* sticky header */}
