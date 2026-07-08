@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.83</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.84</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -340,7 +340,7 @@ function Header({ saveStatus, user, onLogout }) {
 }
 
 function Tabs({ tab, setTab }) {
-  const items = ["Clients", "Tasks", "Call Schedule", "Settings"];
+  const items = ["Clients", "Tasks", "Client Stats", "Call Schedule", "Settings"];
   return (
     <div style={{ display: "flex", justifyContent: "center", marginTop: 34 }}>
       <div style={{
@@ -2056,6 +2056,218 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
 }
 
 
+/* ---------- client stats ---------- */
+function getISOWeekKey(date) {
+  const d = new Date(date);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - day);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+function getMondayOfISOWeek(weekKey) {
+  const [year, w] = weekKey.split("-W").map(Number);
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const mon = new Date(jan4);
+  mon.setDate(jan4.getDate() - jan4Day + 1 + (w - 1) * 7);
+  return mon;
+}
+
+function generateRecentWeeks(n) {
+  const today = new Date();
+  const seen = new Set();
+  const weeks = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i * 7);
+    const key = getISOWeekKey(d);
+    if (!seen.has(key)) { seen.add(key); weeks.push(key); }
+  }
+  return weeks;
+}
+
+const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function formatWeekHeader(weekKey) {
+  const mon = getMondayOfISOWeek(weekKey);
+  const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+  const sameMonth = mon.getMonth() === sun.getMonth();
+  const top = sameMonth
+    ? `${SHORT_MONTHS[mon.getMonth()]} ${mon.getDate()}–${sun.getDate()}`
+    : `${SHORT_MONTHS[mon.getMonth()]} ${mon.getDate()} – ${SHORT_MONTHS[sun.getMonth()]} ${sun.getDate()}`;
+  return { top, sub: weekKey };
+}
+
+function ClientStatsPage({ clients, updateClient, enumColors }) {
+  const [metric4, setMetric4] = useState("CPBC");
+  const weeks = generateRecentWeeks(8);
+
+  const getVal = (c, wk, key) => c.weeklyStats?.[wk]?.[key] ?? "";
+
+  const setVal = (c, wk, key, raw) => {
+    const num = raw === "" ? undefined : Number(raw);
+    const prev = c.weeklyStats?.[wk] || {};
+    const weeklyStats = { ...c.weeklyStats, [wk]: { ...prev, [key]: num } };
+    updateClient(c.name, { weeklyStats });
+  };
+
+  const calcMetric = (c, wk) => {
+    const spend = Number(c.weeklyStats?.[wk]?.adSpend || 0);
+    if (metric4 === "CPBC") {
+      const b = Number(c.weeklyStats?.[wk]?.bookings || 0);
+      return b > 0 ? (spend / b).toFixed(2) : null;
+    }
+    const l = Number(c.weeklyStats?.[wk]?.leads || 0);
+    return l > 0 ? (spend / l).toFixed(2) : null;
+  };
+
+  const STAT_DEFS = [
+    { key: "leads",    label: "Leads",    calc: false },
+    { key: "adSpend",  label: "Ad Spend", calc: false },
+    { key: "bookings", label: "Bookings", calc: false },
+    { key: "_calc",    label: metric4,    calc: true  },
+  ];
+
+  const CLABEL_W = 190;
+  const SLABEL_W = 90;
+  const WEEK_W   = 110;
+
+  const gridCols = `${CLABEL_W}px ${SLABEL_W}px ${weeks.map(() => `${WEEK_W}px`).join(" ")}`;
+
+  const hdrCell = (children, extra = {}) => (
+    <div style={{ padding: "10px 10px", fontSize: 11, letterSpacing: 1, fontWeight: 600, color: C.muted, textTransform: "uppercase", ...extra }}>{children}</div>
+  );
+
+  return (
+    <>
+      <div style={{ textAlign: "center", marginTop: 40 }}>
+        <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>CLIENT STATS · SCALBL</div>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", marginTop: 14 }}>
+          <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{clients.length}</span>
+          <span style={{ fontSize: 34, fontWeight: 700, color: C.faint, marginLeft: 12 }}>clients</span>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 56 }}>
+        <SectionHead
+          title="Weekly Stats"
+          right={
+            <div style={{ display: "inline-flex", gap: 3, padding: 4, ...GLASS, borderRadius: 999 }}>
+              {["CPBC", "CPL"].map((m) => (
+                <button key={m} onClick={() => setMetric4(m)} style={{
+                  border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 16px",
+                  fontSize: 13, fontWeight: 600,
+                  color: m === metric4 ? "#0a0a0a" : C.muted,
+                  background: m === metric4 ? `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})` : "transparent",
+                  transition: "all .15s",
+                }}>{m}</button>
+              ))}
+            </div>
+          }
+        />
+
+        <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
+          <div className="glass-scroll" style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: CLABEL_W + SLABEL_W + weeks.length * WEEK_W }}>
+
+              {/* sticky header */}
+              <div style={{ display: "grid", gridTemplateColumns: gridCols, borderBottom: "2px solid rgba(255,255,255,0.10)", background: "rgba(14,14,20,0.95)", position: "sticky", top: 0, zIndex: 10 }}>
+                {hdrCell("Client", { padding: "12px 20px" })}
+                {hdrCell("Metric")}
+                {weeks.map((wk) => {
+                  const { top, sub } = formatWeekHeader(wk);
+                  const isCurrent = wk === getISOWeekKey(new Date());
+                  return (
+                    <div key={wk} style={{ padding: "8px 10px", textAlign: "center", borderLeft: "1px solid rgba(255,255,255,0.06)", background: isCurrent ? "rgba(255,138,61,0.06)" : "transparent" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isCurrent ? C.orangeBright : C.text }}>{top}</div>
+                      <div style={{ fontSize: 10, color: C.faint, marginTop: 1 }}>{sub}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* client rows */}
+              {clients.map((c, ci) => {
+                const avatarColor = enumColors?.niche?.[c.niche] || c.color;
+                return (
+                  <div key={c.name} style={{ borderTop: ci === 0 ? "none" : "2px solid rgba(255,255,255,0.07)" }}>
+                    {STAT_DEFS.map((stat, si) => (
+                      <div
+                        key={stat.key}
+                        style={{
+                          display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
+                          borderTop: si === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
+                          background: si % 2 === 1 ? "rgba(255,255,255,0.015)" : "transparent",
+                          minHeight: 38,
+                        }}
+                      >
+                        {/* client name — only on first stat row */}
+                        <div style={{ padding: "6px 20px", display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          {si === 0 ? (
+                            <>
+                              <ClientIcon color={avatarColor} name={c.name} size={26} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
+                            </>
+                          ) : null}
+                        </div>
+
+                        {/* stat label */}
+                        <div style={{ padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: stat.calc ? C.orange : C.muted, letterSpacing: 0.4 }}>
+                          {stat.label}
+                        </div>
+
+                        {/* week cells */}
+                        {weeks.map((wk) => {
+                          const isCurrent = wk === getISOWeekKey(new Date());
+                          const cellBg = isCurrent ? "rgba(255,138,61,0.04)" : "transparent";
+
+                          if (stat.calc) {
+                            const v = calcMetric(c, wk);
+                            return (
+                              <div key={wk} style={{ padding: "6px 10px", textAlign: "center", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg, fontSize: 13, fontWeight: 700, color: v ? C.orangeBright : C.faint }}>
+                                {v ? `$${v}` : "—"}
+                              </div>
+                            );
+                          }
+
+                          const raw = getVal(c, wk, stat.key);
+                          const prefix = stat.key === "adSpend" ? "$" : "";
+                          return (
+                            <div key={wk} style={{ padding: "4px 8px", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, padding: "3px 8px" }}>
+                                {prefix && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>{prefix}</span>}
+                                <input
+                                  type="number"
+                                  value={raw}
+                                  min={0}
+                                  placeholder="—"
+                                  onChange={(e) => setVal(c, wk, stat.key, e.target.value)}
+                                  style={{
+                                    width: "100%", background: "transparent", border: "none", outline: "none",
+                                    color: raw !== "" ? C.text : C.faint, fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                                    textAlign: "center", minWidth: 0,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ---------- call schedule ---------- */
 const SCHED_GRID = "52px 110px 130px 1.2fr 1.4fr 2fr 44px";
 
@@ -2704,6 +2916,7 @@ export default function Roster() {
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} currentUser={user?.username || user?.name || "unknown"} />}
+        {tab === "Client Stats" && <ClientStatsPage clients={clients} updateClient={updateClient} enumColors={enumColors} />}
         {tab === "Call Schedule" && <CallSchedulePage clients={clients} schedule={schedule} setSchedule={saveSchedule} />}
         {tab === "Settings" && <SettingsPage user={user} />}
       </div>
