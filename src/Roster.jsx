@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.86</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.87</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2100,6 +2100,58 @@ function formatWeekHeader(weekKey) {
   return { top, sub: weekKey };
 }
 
+/* local-state number input that commits on blur — avoids re-render interrupting typing */
+function StatsNumInput({ committed, onCommit, prefix }) {
+  const [local, setLocal] = useState(committed ?? "");
+  useEffect(() => { setLocal(committed ?? ""); }, [committed]);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, padding: "3px 8px" }}>
+      {prefix && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>{prefix}</span>}
+      <input
+        type="number"
+        value={local}
+        min={0}
+        placeholder="—"
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => { if (String(local) !== String(committed ?? "")) onCommit(local); }}
+        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
+        style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: local !== "" ? C.text : C.faint, fontFamily: FONT, fontSize: 13, fontWeight: 600, textAlign: "center", minWidth: 0 }}
+      />
+    </div>
+  );
+}
+
+/* local-state text input, commits on blur */
+function StatsTextInput({ committed, onCommit, placeholder, style }) {
+  const [local, setLocal] = useState(committed || "");
+  useEffect(() => { setLocal(committed || ""); }, [committed]);
+  return (
+    <input
+      value={local}
+      placeholder={placeholder}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => { if (local !== (committed || "")) onCommit(local); }}
+      style={style}
+    />
+  );
+}
+
+/* local-state textarea, commits on blur */
+function StatsTextarea({ committed, onCommit, placeholder, rows, style }) {
+  const [local, setLocal] = useState(committed || "");
+  useEffect(() => { setLocal(committed || ""); }, [committed]);
+  return (
+    <textarea
+      value={local}
+      placeholder={placeholder}
+      rows={rows}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => { if (local !== (committed || "")) onCommit(local); }}
+      style={style}
+    />
+  );
+}
+
 function ClientStatsPage({ clients, updateClient, enumColors }) {
   const [metric4, setMetric4] = useState("CPBC");
   const [collapsed, setCollapsed] = useState(new Set());
@@ -2111,13 +2163,12 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
     return next;
   });
 
-  const getVal = (c, wk, key) => c.weeklyStats?.[wk]?.[key] ?? "";
+  const getVal = (c, wk, key) => c.weeklyStats?.[wk]?.[key];
 
   const setVal = (c, wk, key, raw) => {
-    const num = raw === "" ? undefined : Number(raw);
+    const num = raw === "" || raw === undefined ? undefined : Number(raw);
     const prev = c.weeklyStats?.[wk] || {};
-    const weeklyStats = { ...c.weeklyStats, [wk]: { ...prev, [key]: num } };
-    updateClient(c.name, { weeklyStats });
+    updateClient(c.name, { weeklyStats: { ...c.weeklyStats, [wk]: { ...prev, [key]: num } } });
   };
 
   const calcMetric = (c, wk) => {
@@ -2219,9 +2270,9 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
                       {/* ad account */}
                       <div style={{ width: SLABEL_W, flexShrink: 0, padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: C.blue, letterSpacing: 0.4 }}>Ad Account</div>
                       <div style={{ flex: 1, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                        <input
-                          value={c.adAccountLink || ""}
-                          onChange={(e) => updateClient(c.name, { adAccountLink: e.target.value })}
+                        <StatsTextInput
+                          committed={c.adAccountLink || ""}
+                          onCommit={(v) => updateClient(c.name, { adAccountLink: v })}
                           placeholder="https://adsmanager.facebook.com/…"
                           style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: c.adAccountLink ? C.text : C.faint, fontFamily: FONT, fontSize: 12.5, minWidth: 0 }}
                         />
@@ -2240,9 +2291,9 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
                           <div style={{ width: CLABEL_W, flexShrink: 0 }} />
                           <div style={{ width: SLABEL_W, flexShrink: 0, padding: "10px 10px", fontSize: 11.5, fontWeight: 600, color: C.muted, letterSpacing: 0.4, paddingTop: 12 }}>Tracking Rules</div>
                           <div style={{ flex: 1, padding: "8px 12px" }}>
-                            <textarea
-                              value={c.trackingRules || ""}
-                              onChange={(e) => updateClient(c.name, { trackingRules: e.target.value })}
+                            <StatsTextarea
+                              committed={c.trackingRules || ""}
+                              onCommit={(v) => updateClient(c.name, { trackingRules: v })}
                               placeholder="Describe how leads, bookings and ad spend are tracked for this client…"
                               rows={2}
                               style={{
@@ -2285,25 +2336,15 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
                                 );
                               }
 
-                              const raw = getVal(c, wk, stat.key);
+                              const committed = getVal(c, wk, stat.key);
                               const prefix = stat.key === "adSpend" ? "$" : "";
                               return (
                                 <div key={wk} style={{ padding: "4px 8px", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, padding: "3px 8px" }}>
-                                    {prefix && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>{prefix}</span>}
-                                    <input
-                                      type="number"
-                                      value={raw}
-                                      min={0}
-                                      placeholder="—"
-                                      onChange={(e) => setVal(c, wk, stat.key, e.target.value)}
-                                      style={{
-                                        width: "100%", background: "transparent", border: "none", outline: "none",
-                                        color: raw !== "" ? C.text : C.faint, fontFamily: FONT, fontSize: 13, fontWeight: 600,
-                                        textAlign: "center", minWidth: 0,
-                                      }}
-                                    />
-                                  </div>
+                                  <StatsNumInput
+                                    committed={committed}
+                                    onCommit={(raw) => setVal(c, wk, stat.key, raw)}
+                                    prefix={prefix}
+                                  />
                                 </div>
                               );
                             })}
