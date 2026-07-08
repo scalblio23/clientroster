@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.85</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.86</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2102,7 +2102,14 @@ function formatWeekHeader(weekKey) {
 
 function ClientStatsPage({ clients, updateClient, enumColors }) {
   const [metric4, setMetric4] = useState("CPBC");
+  const [collapsed, setCollapsed] = useState(new Set());
   const weeks = generateRecentWeeks(8);
+
+  const toggleCollapse = (name) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    return next;
+  });
 
   const getVal = (c, wk, key) => c.weeklyStats?.[wk]?.[key] ?? "";
 
@@ -2191,15 +2198,25 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
               {/* client rows */}
               {clients.map((c, ci) => {
                 const avatarColor = enumColors?.niche?.[c.niche] || c.color;
+                const isCollapsed = collapsed.has(c.name);
                 return (
                   <div key={c.name} style={{ borderTop: ci === 0 ? "none" : "2px solid rgba(255,255,255,0.07)" }}>
 
-                    {/* ad account link row — spans full width */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 0, background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)", minHeight: 36 }}>
-                      <div style={{ width: CLABEL_W, flexShrink: 0, padding: "6px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+                    {/* client header row: collapse toggle + name + ad account link */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 0, background: "rgba(255,255,255,0.02)", borderBottom: isCollapsed ? "none" : "1px solid rgba(255,255,255,0.05)", minHeight: 40 }}>
+                      {/* collapse toggle + avatar + name */}
+                      <div style={{ width: CLABEL_W, flexShrink: 0, padding: "6px 14px 6px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                        <button
+                          onClick={() => toggleCollapse(c.name)}
+                          title={isCollapsed ? "Expand" : "Collapse"}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center", padding: 2, flexShrink: 0, transition: "transform .2s", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+                        >
+                          <span style={{ fontSize: 10, lineHeight: 1 }}>▼</span>
+                        </button>
                         <ClientIcon color={avatarColor} name={c.name} size={26} />
                         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
                       </div>
+                      {/* ad account */}
                       <div style={{ width: SLABEL_W, flexShrink: 0, padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: C.blue, letterSpacing: 0.4 }}>Ad Account</div>
                       <div style={{ flex: 1, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                         <input
@@ -2216,62 +2233,84 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
                       </div>
                     </div>
 
-                    {STAT_DEFS.map((stat, si) => (
-                      <div
-                        key={stat.key}
-                        style={{
-                          display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
-                          borderTop: si === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
-                          background: si % 2 === 1 ? "rgba(255,255,255,0.015)" : "transparent",
-                          minHeight: 38,
-                        }}
-                      >
-                        {/* empty name cell for stat rows */}
-                        <div style={{ padding: "6px 20px" }} />
-
-                        {/* stat label */}
-                        <div style={{ padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: stat.calc ? C.orange : C.muted, letterSpacing: 0.4 }}>
-                          {stat.label}
+                    {!isCollapsed && (
+                      <>
+                        {/* tracking rules row */}
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, background: "rgba(255,255,255,0.015)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                          <div style={{ width: CLABEL_W, flexShrink: 0 }} />
+                          <div style={{ width: SLABEL_W, flexShrink: 0, padding: "10px 10px", fontSize: 11.5, fontWeight: 600, color: C.muted, letterSpacing: 0.4, paddingTop: 12 }}>Tracking Rules</div>
+                          <div style={{ flex: 1, padding: "8px 12px" }}>
+                            <textarea
+                              value={c.trackingRules || ""}
+                              onChange={(e) => updateClient(c.name, { trackingRules: e.target.value })}
+                              placeholder="Describe how leads, bookings and ad spend are tracked for this client…"
+                              rows={2}
+                              style={{
+                                width: "100%", boxSizing: "border-box", resize: "vertical",
+                                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                                borderRadius: 8, color: C.text, fontFamily: FONT, fontSize: 12.5,
+                                padding: "7px 10px", outline: "none", lineHeight: 1.5,
+                              }}
+                            />
+                          </div>
                         </div>
 
-                        {/* week cells */}
-                        {weeks.map((wk) => {
-                          const isCurrent = wk === getISOWeekKey(new Date());
-                          const cellBg = isCurrent ? "rgba(255,138,61,0.04)" : "transparent";
+                        {/* stat rows */}
+                        {STAT_DEFS.map((stat, si) => (
+                          <div
+                            key={stat.key}
+                            style={{
+                              display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
+                              borderTop: si === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
+                              background: si % 2 === 1 ? "rgba(255,255,255,0.015)" : "transparent",
+                              minHeight: 38,
+                            }}
+                          >
+                            <div style={{ padding: "6px 20px" }} />
 
-                          if (stat.calc) {
-                            const v = calcMetric(c, wk);
-                            return (
-                              <div key={wk} style={{ padding: "6px 10px", textAlign: "center", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg, fontSize: 13, fontWeight: 700, color: v ? C.orangeBright : C.faint }}>
-                                {v ? `$${v}` : "—"}
-                              </div>
-                            );
-                          }
-
-                          const raw = getVal(c, wk, stat.key);
-                          const prefix = stat.key === "adSpend" ? "$" : "";
-                          return (
-                            <div key={wk} style={{ padding: "4px 8px", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, padding: "3px 8px" }}>
-                                {prefix && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>{prefix}</span>}
-                                <input
-                                  type="number"
-                                  value={raw}
-                                  min={0}
-                                  placeholder="—"
-                                  onChange={(e) => setVal(c, wk, stat.key, e.target.value)}
-                                  style={{
-                                    width: "100%", background: "transparent", border: "none", outline: "none",
-                                    color: raw !== "" ? C.text : C.faint, fontFamily: FONT, fontSize: 13, fontWeight: 600,
-                                    textAlign: "center", minWidth: 0,
-                                  }}
-                                />
-                              </div>
+                            <div style={{ padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: stat.calc ? C.orange : C.muted, letterSpacing: 0.4 }}>
+                              {stat.label}
                             </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+
+                            {weeks.map((wk) => {
+                              const isCurrent = wk === getISOWeekKey(new Date());
+                              const cellBg = isCurrent ? "rgba(255,138,61,0.04)" : "transparent";
+
+                              if (stat.calc) {
+                                const v = calcMetric(c, wk);
+                                return (
+                                  <div key={wk} style={{ padding: "6px 10px", textAlign: "center", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg, fontSize: 13, fontWeight: 700, color: v ? C.orangeBright : C.faint }}>
+                                    {v ? `$${v}` : "—"}
+                                  </div>
+                                );
+                              }
+
+                              const raw = getVal(c, wk, stat.key);
+                              const prefix = stat.key === "adSpend" ? "$" : "";
+                              return (
+                                <div key={wk} style={{ padding: "4px 8px", borderLeft: "1px solid rgba(255,255,255,0.05)", background: cellBg }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, padding: "3px 8px" }}>
+                                    {prefix && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>{prefix}</span>}
+                                    <input
+                                      type="number"
+                                      value={raw}
+                                      min={0}
+                                      placeholder="—"
+                                      onChange={(e) => setVal(c, wk, stat.key, e.target.value)}
+                                      style={{
+                                        width: "100%", background: "transparent", border: "none", outline: "none",
+                                        color: raw !== "" ? C.text : C.faint, fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                                        textAlign: "center", minWidth: 0,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 );
               })}
