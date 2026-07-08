@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.84</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.85</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2193,6 +2193,29 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
                 const avatarColor = enumColors?.niche?.[c.niche] || c.color;
                 return (
                   <div key={c.name} style={{ borderTop: ci === 0 ? "none" : "2px solid rgba(255,255,255,0.07)" }}>
+
+                    {/* ad account link row — spans full width */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 0, background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)", minHeight: 36 }}>
+                      <div style={{ width: CLABEL_W, flexShrink: 0, padding: "6px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+                        <ClientIcon color={avatarColor} name={c.name} size={26} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
+                      </div>
+                      <div style={{ width: SLABEL_W, flexShrink: 0, padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: C.blue, letterSpacing: 0.4 }}>Ad Account</div>
+                      <div style={{ flex: 1, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <input
+                          value={c.adAccountLink || ""}
+                          onChange={(e) => updateClient(c.name, { adAccountLink: e.target.value })}
+                          placeholder="https://adsmanager.facebook.com/…"
+                          style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: c.adAccountLink ? C.text : C.faint, fontFamily: FONT, fontSize: 12.5, minWidth: 0 }}
+                        />
+                        {c.adAccountLink && (
+                          <a href={c.adAccountLink} target="_blank" rel="noreferrer" style={{ color: C.blue, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
                     {STAT_DEFS.map((stat, si) => (
                       <div
                         key={stat.key}
@@ -2203,15 +2226,8 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
                           minHeight: 38,
                         }}
                       >
-                        {/* client name — only on first stat row */}
-                        <div style={{ padding: "6px 20px", display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                          {si === 0 ? (
-                            <>
-                              <ClientIcon color={avatarColor} name={c.name} size={26} />
-                              <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
-                            </>
-                          ) : null}
-                        </div>
+                        {/* empty name cell for stat rows */}
+                        <div style={{ padding: "6px 20px" }} />
 
                         {/* stat label */}
                         <div style={{ padding: "6px 10px", fontSize: 11.5, fontWeight: 600, color: stat.calc ? C.orange : C.muted, letterSpacing: 0.4 }}>
