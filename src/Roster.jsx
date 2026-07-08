@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.81</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.82</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -691,7 +691,7 @@ const COL_DEFS = [
   { key: "notes",      label: "Notes",       width: "280px" },
   { key: "daysOld",    label: "Days Old",    width: "80px"  },
   { key: "vibe",       label: "Client Vibe", width: "120px" },
-  { key: "adStatus",      label: "Ad Status",      width: "110px" },
+  { key: "adStatus",      label: "Ad Status",      width: "170px" },
   { key: "statusReport",  label: "Status Report",  width: "220px" },
   { key: "onboarding", label: "Onboarding",  width: "170px" },
   { key: "priority",   label: "Priority",    width: "100px" },
@@ -996,7 +996,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
                   borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
                 }}>
                   {cols.map((col) => (
-                    <div key={col.key}>{renderCell(col.key, c, cTasks)}</div>
+                    <div key={col.key} style={{ overflow: "hidden", minWidth: 0 }}>{renderCell(col.key, c, cTasks)}</div>
                   ))}
                 </div>
               );
