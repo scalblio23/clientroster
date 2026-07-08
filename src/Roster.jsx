@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.82</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.83</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1620,6 +1620,7 @@ const selectStyle = {
 };
 
 const TASK_COLS = [
+  { key: "_log",     label: "" },
   { key: "text",     label: "Task" },
   { key: "client",   label: "Client" },
   { key: "status",   label: "Status" },
@@ -1630,7 +1631,8 @@ const TASK_COLS = [
   { key: "loom",     label: "Loom" },
   { key: "_del",     label: "" },
 ];
-const TASK_GRID = "1.8fr 1.1fr 1fr 1fr 1fr 1.2fr 1.3fr 1.3fr 0.4fr";
+const TASK_GRID = "28px 1.8fr 1.1fr 1fr 1fr 1fr 1.2fr 1.3fr 1.3fr 0.4fr";
+const TASK_PRIORITY_COLORS = { High: "#f0674a", Medium: "#fbbf24", Low: "#9aa0a8" };
 const TEAM = ["Owen", "Henry", "Cody"];
 const TEAM_COLORS = { Owen: "#5b9bff", Henry: "#ff8a3d", Cody: "#34d399" };
 const TASK_STATUS = ["To Do", "In Progress", "Bump", "Done"];
@@ -1646,6 +1648,115 @@ function taskSortVal(key, t) {
     case "due":      return t.due ? new Date(t.due).getTime() : Infinity;
     default:         return "";
   }
+}
+
+function TaskLogModal({ task, currentUser, onClose, onAddLog }) {
+  const [text, setText] = useState("");
+  const [copied, setCopied] = useState(false);
+  const bottomRef = useRef(null);
+  const logs = task.logs || [];
+  const priorityColor = TASK_PRIORITY_COLORS[task.priority] || TASK_PRIORITY_COLORS.Medium;
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs.length]);
+
+  const submit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAddLog(trimmed);
+    setText("");
+  };
+
+  const copyShareLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("task", task.id);
+    navigator.clipboard.writeText(url.toString()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+
+  const fmtDate = (ts) => {
+    const d = new Date(ts);
+    const diffMins = Math.floor((Date.now() - ts) / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+    >
+      <div style={{ ...GLASS, borderRadius: 20, width: "100%", maxWidth: 520, maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <span style={{ width: 10, height: 10, borderRadius: 99, background: priorityColor, flexShrink: 0, marginTop: 5, boxShadow: `0 0 8px ${priorityColor}88` }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text, lineHeight: 1.4 }}>{task.text}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{task.client} · {task.priority || "Medium"} priority</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={copyShareLink}
+              title="Copy share link"
+              style={{ background: copied ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.07)", border: `1px solid ${copied ? "#34d399" : "rgba(255,255,255,0.12)"}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", color: copied ? "#34d399" : C.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 5, fontFamily: FONT, transition: "all .2s" }}
+            >
+              <Link2 size={13} /> {copied ? "Copied!" : "Share"}
+            </button>
+            <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, display: "grid", placeItems: "center", padding: 4, borderRadius: 8 }}>
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* log feed */}
+        <div className="glass-scroll" style={{ flex: 1, overflowY: "auto", padding: "16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {logs.length === 0 && (
+            <div style={{ textAlign: "center", color: C.faint, fontSize: 13, margin: "auto 0", padding: "32px 0" }}>No logs yet. Add the first one below.</div>
+          )}
+          {logs.map((entry, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 8, background: C.orangeSoft, border: `1px solid ${C.orangeSoftBorder}`, display: "grid", placeItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.orangeBright }}>{(entry.user || "?")[0].toUpperCase()}</span>
+                </div>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: C.text }}>{entry.user || "Unknown"}</span>
+                <span style={{ fontSize: 11, color: C.faint, marginLeft: "auto" }}>{fmtDate(entry.ts)}</span>
+              </div>
+              <div style={{ marginLeft: 34, fontSize: 13.5, color: C.text, lineHeight: 1.5, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 12px", border: "1px solid rgba(255,255,255,0.07)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                {entry.text}
+              </div>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* composer */}
+        <div style={{ padding: "14px 22px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10, alignItems: "flex-end" }}>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            placeholder="Add a log entry… (Enter to post)"
+            rows={2}
+            style={{ flex: 1, resize: "none", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, color: C.text, fontSize: 13.5, padding: "10px 14px", fontFamily: FONT, outline: "none", lineHeight: 1.5 }}
+          />
+          <button
+            onClick={submit}
+            disabled={!text.trim()}
+            style={{ background: text.trim() ? C.orange : "rgba(255,255,255,0.08)", border: "none", borderRadius: 12, color: text.trim() ? "#000" : C.faint, fontWeight: 700, fontSize: 13.5, padding: "10px 18px", cursor: text.trim() ? "pointer" : "default", fontFamily: FONT, transition: "background .15s, color .15s", flexShrink: 0 }}
+          >
+            Post
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AddTaskModal({ clients, onAdd, onClose }) {
@@ -1749,13 +1860,26 @@ function AddTaskModal({ clients, onAdd, onClose }) {
   );
 }
 
-function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
+function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUser }) {
   const [depsFor, setDepsFor] = useState(null);
   const [addingTask, setAddingTask] = useState(false);
+  const [logTaskId, setLogTaskId] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("task") || null;
+  });
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
+  const logTask = tasks.find((t) => t.id === logTaskId) || null;
+
+  // clean up ?task= from URL when modal closes
+  const closeLogModal = () => {
+    setLogTaskId(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("task");
+    window.history.replaceState({}, "", url.toString());
+  };
 
   const handleHeaderClick = (key) => {
     if (key === "deps" || key === "loom" || key === "_del") return;
@@ -1825,11 +1949,22 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
               </div>
               {sortedTasks.map((t, i) => {
                 const c = byName[t.client];
+                const hasLogs = (t.logs?.length || 0) > 0;
+                const prioColor = TASK_PRIORITY_COLORS[t.priority] || TASK_PRIORITY_COLORS.Medium;
                 return (
                   <div key={t.id} style={{
                     display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 10,
                     padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
                   }}>
+                    {/* priority dot / log trigger */}
+                    <button
+                      onClick={() => setLogTaskId(t.id)}
+                      title="View task log"
+                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: 99, background: prioColor, display: "block", boxShadow: `0 0 6px ${prioColor}88`, flexShrink: 0 }} />
+                      {hasLogs && <span style={{ position: "absolute", top: -3, right: -3, width: 6, height: 6, borderRadius: 99, background: C.orange, border: "1.5px solid #0e0e14" }} />}
+                    </button>
                     {/* task = primary column */}
                     <input
                       value={t.text} onChange={(e) => updateTask(t.id, { text: e.target.value })}
@@ -1902,6 +2037,18 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask }) {
             updateTask(activeTask.id, { deps: has ? activeTask.deps.filter((d) => d !== depId) : [...activeTask.deps, depId] });
           }}
           onClose={() => setDepsFor(null)}
+        />
+      )}
+
+      {logTask && (
+        <TaskLogModal
+          task={logTask}
+          currentUser={currentUser}
+          onClose={closeLogModal}
+          onAddLog={(text) => {
+            const entry = { text, user: currentUser, ts: Date.now() };
+            updateTask(logTask.id, { logs: [...(logTask.logs || []), entry] });
+          }}
         />
       )}
     </>
@@ -2360,7 +2507,10 @@ function SettingsPage({ user }) {
 /* ---------- root ---------- */
 export default function Roster() {
   const [user, setUser] = useState(() => api.hasToken() ? (api.loadUser() || { name: "", username: "" }) : null);
-  const [tab, setTab] = useState("Clients");
+  const [tab, setTab] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("task") ? "Tasks" : "Clients";
+  });
   const [clients, setClients] = useState(CLIENTS);
   const [tasks, setTasks]     = useState(SEED_TASKS);
   const [schedule, setSchedule] = useState(() => { try { return JSON.parse(localStorage.getItem("roster_schedule") || "[]"); } catch { return []; } });
@@ -2553,7 +2703,7 @@ export default function Roster() {
         <Header user={user} onLogout={logout} saveStatus={saveStatus} />
         <Tabs tab={tab} setTab={setTab} />
         {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} currentUser={user?.username || user?.name || "unknown"} />}
-        {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} />}
+        {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Call Schedule" && <CallSchedulePage clients={clients} schedule={schedule} setSchedule={saveSchedule} />}
         {tab === "Settings" && <SettingsPage user={user} />}
       </div>
