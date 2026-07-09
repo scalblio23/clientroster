@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.90</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.91</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -859,7 +859,14 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
         const cpl = (c.leads || 0) > 0 ? ((c.adSpend || 0) / c.leads).toFixed(2) : null;
         return <div style={{ fontSize: 13, fontWeight: 700, color: cpl ? C.orangeBright : C.faint }}>{cpl ? `$${cpl}` : "—"}</div>;
       }
-      case "startDate": return <BlurInput value={c.start || ""} onCommit={(v) => updateClient(c.name, { start: v })} style={{ ...cellInput({ fontSize: 13 }) }} />;
+      case "startDate": return (
+        <input
+          type="date"
+          value={c.start || ""}
+          onChange={(e) => updateClient(c.name, { start: e.target.value })}
+          style={{ ...cellInput({ fontSize: 13 }), colorScheme: "dark", cursor: "pointer" }}
+        />
+      );
       case "niche": return (
         <SelectPicker
           field="niche"
