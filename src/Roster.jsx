@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.94</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.95</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1069,24 +1069,29 @@ function OnboardingBar({ client, onClick }) {
 }
 
 function OnboardingModal({ client, onClose, onUpdate }) {
-  const steps = client.onboardingSteps || [];
-  const checked = ONBOARDING_STEPS.map((_, i) => !!steps[i]);
+  const [checked, setChecked] = useState(() =>
+    ONBOARDING_STEPS.map((_, i) => !!(client.onboardingSteps || [])[i])
+  );
   const firstUnchecked = checked.indexOf(false);
 
-  const toggle = (idx) => {
-    if (idx !== firstUnchecked) return; // must check in order
-    const next = [...checked];
-    next[idx] = true;
+  const commit = (next) => {
+    setChecked(next);
     onUpdate(next);
   };
 
+  const toggle = (idx) => {
+    if (idx !== firstUnchecked) return;
+    const next = [...checked];
+    next[idx] = true;
+    commit(next);
+  };
+
   const uncheck = (idx) => {
-    // can only uncheck the last checked item
     const lastChecked = checked.lastIndexOf(true);
     if (idx !== lastChecked) return;
     const next = [...checked];
     next[idx] = false;
-    onUpdate(next);
+    commit(next);
   };
 
   const done = checked.filter(Boolean).length;
