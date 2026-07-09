@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.92</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.93</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -849,7 +849,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
       case "vibe": return <SelectPicker field="vibe" value={c.status || "neutral"} options={VIBE_OPTIONS} colors={enumColors.vibe} onChangeValue={(v) => updateClient(c.name, { status: v })} onChangeColor={updateEnumColor} labelMap={VIBE_LABELS} />;
       case "adStatus": return <SelectPicker field="adStatus" value={c.adStatus || "Not Live"} options={AD_STATUS_ORDER} colors={enumColors.adStatus} onChangeValue={(v) => updateClient(c.name, { adStatus: v })} onChangeColor={updateEnumColor} />;
       case "statusReport": return <BlurInput value={c.statusReport || ""} onCommit={(v) => updateClient(c.name, { statusReport: v })} placeholder="Status…" style={{ ...cellInput({ fontSize: 13 }) }} />;
-      case "onboarding": return <SelectPicker field="onboarding" value={c.onboarding || "Pending"} options={ONBOARDING_ORDER} colors={enumColors.onboarding} onChangeValue={(v) => updateClient(c.name, { onboarding: v })} onChangeColor={updateEnumColor} />;
+      case "onboarding": return <OnboardingBar client={c} onClick={() => setOnboardingClient(c)} />;
       case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
       case "pifMrr": return <SelectPicker field="pifMrr" value={c.pifMrr || "MRR"} options={PIF_MRR_ORDER} colors={enumColors.pifMrr || DEFAULT_COLORS.pifMrr} onChangeValue={(v) => updateClient(c.name, { pifMrr: v })} onChangeColor={updateEnumColor} />;
       case "mrr": return <BlurInput type="number" value={c.mrr ?? 0} onCommit={(v) => updateClient(c.name, { mrr: Number(v) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
@@ -1022,6 +1022,145 @@ function suggestViewName(sortKey, sortDir) {
 
 const ALL_COL_KEYS = COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key);
 
+const ONBOARDING_STEPS = [
+  "New Client",
+  "Proposal Signed",
+  "Ad Account Collected",
+  "Page Access",
+  "Client Added To Dashboard",
+  "WhatsApp Group Created",
+  "Client Added To KPI Sheet",
+  "Founder Brief",
+  "Strategy Doc",
+  "Creative Gen",
+  "Ad Copy Gen",
+  "Ad Structure",
+  "Ad Launch",
+  "Automations",
+  "Mirror Sheet",
+  "Calling Script",
+  "Client Alignment With Process",
+  "Booking System",
+  "Launch",
+];
+
+function OnboardingBar({ client, onClick }) {
+  const steps = client.onboardingSteps || [];
+  const done = steps.filter(Boolean).length;
+  const total = ONBOARDING_STEPS.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const complete = done === total;
+  const barColor = complete ? "#34d399" : done > 0 ? "#ff8a3d" : "#9aa0a8";
+  return (
+    <div
+      onClick={onClick}
+      title={`${done}/${total} steps complete — click to manage`}
+      style={{ cursor: "pointer", width: "100%", display: "flex", flexDirection: "column", gap: 3 }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: barColor, fontWeight: 600 }}>{pct}%</span>
+        <span style={{ fontSize: 10, color: "#9aa0a8" }}>{done}/{total}</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 3, background: barColor, transition: "width 0.3s" }} />
+      </div>
+    </div>
+  );
+}
+
+function OnboardingModal({ client, onClose, onUpdate }) {
+  const steps = client.onboardingSteps || [];
+  const checked = ONBOARDING_STEPS.map((_, i) => !!steps[i]);
+  const firstUnchecked = checked.indexOf(false);
+
+  const toggle = (idx) => {
+    if (idx !== firstUnchecked) return; // must check in order
+    const next = [...checked];
+    next[idx] = true;
+    onUpdate(next);
+  };
+
+  const uncheck = (idx) => {
+    // can only uncheck the last checked item
+    const lastChecked = checked.lastIndexOf(true);
+    if (idx !== lastChecked) return;
+    const next = [...checked];
+    next[idx] = false;
+    onUpdate(next);
+  };
+
+  const done = checked.filter(Boolean).length;
+  const total = ONBOARDING_STEPS.length;
+  const pct = Math.round((done / total) * 100);
+  const barColor = done === total ? "#34d399" : done > 0 ? "#ff8a3d" : "#9aa0a8";
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: "#1a1d2e", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: "28px 32px", width: 420, maxHeight: "85vh", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Onboarding</div>
+            <div style={{ fontSize: 12, color: "#9aa0a8", marginTop: 2 }}>{client.name}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#9aa0a8", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* progress bar */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: barColor, fontWeight: 600 }}>{pct}% complete</span>
+            <span style={{ fontSize: 12, color: "#9aa0a8" }}>{done}/{total}</span>
+          </div>
+          <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, borderRadius: 4, background: barColor, transition: "width 0.3s" }} />
+          </div>
+        </div>
+
+        {/* steps list */}
+        <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+          {ONBOARDING_STEPS.map((label, idx) => {
+            const isChecked = checked[idx];
+            const isNext = idx === firstUnchecked;
+            const isLocked = !isChecked && !isNext;
+            return (
+              <div
+                key={idx}
+                onClick={() => {
+                  if (isChecked) uncheck(idx);
+                  else if (isNext) toggle(idx);
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
+                  borderRadius: 8, cursor: isLocked ? "default" : "pointer",
+                  background: isChecked ? "rgba(52,211,153,0.08)" : isNext ? "rgba(255,138,61,0.08)" : "transparent",
+                  opacity: isLocked ? 0.4 : 1,
+                  transition: "background 0.15s",
+                }}
+              >
+                <div style={{
+                  width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+                  border: `2px solid ${isChecked ? "#34d399" : isNext ? "#ff8a3d" : "rgba(255,255,255,0.2)"}`,
+                  background: isChecked ? "#34d399" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {isChecked && <span style={{ color: "#000", fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                </div>
+                <span style={{ fontSize: 13, color: isChecked ? "#34d399" : isNext ? "#fff" : "#9aa0a8", fontWeight: isNext ? 600 : 400 }}>
+                  {label}
+                </span>
+                {isNext && <span style={{ marginLeft: "auto", fontSize: 10, color: "#ff8a3d", fontWeight: 600 }}>NEXT</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddClientModal({ onAdd, onClose }) {
   const [name, setName]   = useState("");
   const [color, setColor] = useState("#ff8a3d");
@@ -1097,6 +1236,7 @@ function AddClientModal({ onAdd, onClose }) {
 function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addClient, enumColors, updateEnumColor, nicheOptions, addNicheOption, currentUser }) {
   const [logClient, setLogClient] = useState(null);
   const [addingClient, setAddingClient] = useState(false);
+  const [onboardingClient, setOnboardingClient] = useState(null);
   const [view, setView] = useState("table");
   const [propOpen, setPropOpen] = useState(false);
   const propRef = useRef(null);
@@ -1403,6 +1543,20 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
         <AddClientModal
           onAdd={(name, color) => addClient(name, color)}
           onClose={() => setAddingClient(false)}
+        />
+      )}
+      {onboardingClient && (
+        <OnboardingModal
+          client={onboardingClient}
+          onClose={() => setOnboardingClient(null)}
+          onUpdate={(nextSteps) => {
+            const allDone = nextSteps.every(Boolean);
+            updateClient(onboardingClient.name, {
+              onboardingSteps: nextSteps,
+              onboarding: allDone ? "Onboard Complete" : "Pending",
+            });
+            setOnboardingClient((prev) => ({ ...prev, onboardingSteps: nextSteps }));
+          }}
         />
       )}
     </>
@@ -2915,7 +3069,12 @@ export default function Roster() {
     Promise.all([api.getClients(), api.getTasks(), api.getSettings()])
       .then(([c, t, s]) => {
         if (c.length) {
-          setClients(c);
+          setClients(c.map((cl) => cl.onboardingSteps ? cl : {
+            ...cl,
+            onboardingSteps: cl.onboarding === "Onboard Complete"
+              ? ONBOARDING_STEPS.map(() => true)
+              : [],
+          }));
         } else {
           // Blob is empty — seed with default clients so PATCH can find them
           api.putClients({ clients: CLIENTS, changes: [] }).catch(() => {});
@@ -2933,7 +3092,7 @@ export default function Roster() {
     if (!user) return;
     const id = setInterval(() => {
       if (clientSaveTimer.current || taskSaveTimer.current) return;
-      api.getClients().then((c) => { if (c.length) setClients(c); }).catch(() => {});
+      api.getClients().then((c) => { if (c.length) setClients(c.map((cl) => cl.onboardingSteps ? cl : { ...cl, onboardingSteps: cl.onboarding === "Onboard Complete" ? ONBOARDING_STEPS.map(() => true) : [] })); }).catch(() => {});
       api.getTasks().then((t) => { if (t.length) setTasks(t); }).catch(() => {});
     }, 20000);
     return () => clearInterval(id);
