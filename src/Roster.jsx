@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.97</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.98</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1072,8 +1072,15 @@ function OnboardingModal({ client, onClose, onUpdate }) {
   const [checked, setChecked] = useState(() =>
     ONBOARDING_STEPS.map((_, i) => !!(client.onboardingSteps || [])[i])
   );
+  const [urls, setUrls] = useState(() => {
+    const saved = client.onboardingUrls || [];
+    return ONBOARDING_STEPS.map((_, i) => saved[i] || "");
+  });
+
   const checkedRef = useRef(checked);
+  const urlsRef = useRef(urls);
   checkedRef.current = checked;
+  urlsRef.current = urls;
 
   const toggleIdx = (idx) => {
     setChecked((prev) => {
@@ -1083,8 +1090,16 @@ function OnboardingModal({ client, onClose, onUpdate }) {
     });
   };
 
+  const setUrl = (idx, val) => {
+    setUrls((prev) => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
+
   const handleClose = () => {
-    onUpdate(checkedRef.current);
+    onUpdate(checkedRef.current, urlsRef.current);
     onClose();
   };
 
@@ -1098,7 +1113,7 @@ function OnboardingModal({ client, onClose, onUpdate }) {
       style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div style={{ background: "#1a1d2e", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: "28px 32px", width: 420, maxHeight: "85vh", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ background: "#1a1d2e", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: "28px 32px", width: 680, maxHeight: "88vh", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Onboarding</div>
@@ -1118,6 +1133,12 @@ function OnboardingModal({ client, onClose, onUpdate }) {
           </div>
         </div>
 
+        {/* column headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 8, padding: "0 12px" }}>
+          <span style={{ fontSize: 11, color: "#9aa0a8", fontWeight: 600, letterSpacing: 0.5 }}>STEP</span>
+          <span style={{ fontSize: 11, color: "#9aa0a8", fontWeight: 600, letterSpacing: 0.5 }}>URL</span>
+        </div>
+
         {/* steps list */}
         <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
           {ONBOARDING_STEPS.map((label, idx) => {
@@ -1125,25 +1146,44 @@ function OnboardingModal({ client, onClose, onUpdate }) {
             return (
               <div
                 key={idx}
-                onClick={() => toggleIdx(idx)}
                 style={{
-                  display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
-                  borderRadius: 8, cursor: "pointer",
-                  background: isChecked ? "rgba(52,211,153,0.08)" : "transparent",
+                  display: "grid", gridTemplateColumns: "1fr 220px", gap: 8, alignItems: "center",
+                  padding: "7px 12px", borderRadius: 8,
+                  background: isChecked ? "rgba(52,211,153,0.07)" : "transparent",
                   transition: "background 0.15s",
                 }}
               >
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-                  border: `2px solid ${isChecked ? "#34d399" : "rgba(255,255,255,0.2)"}`,
-                  background: isChecked ? "#34d399" : "transparent",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  {isChecked && <span style={{ color: "#000", fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                {/* left: checkbox + label */}
+                <div
+                  onClick={() => toggleIdx(idx)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", minWidth: 0 }}
+                >
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+                    border: `2px solid ${isChecked ? "#34d399" : "rgba(255,255,255,0.2)"}`,
+                    background: isChecked ? "#34d399" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {isChecked && <span style={{ color: "#000", fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: 13, color: isChecked ? "#34d399" : "#9aa0a8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {label}
+                  </span>
                 </div>
-                <span style={{ fontSize: 13, color: isChecked ? "#34d399" : "#9aa0a8" }}>
-                  {label}
-                </span>
+
+                {/* right: url input */}
+                <input
+                  type="text"
+                  value={urls[idx]}
+                  onChange={(e) => setUrl(idx, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="https://"
+                  style={{
+                    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 6, padding: "4px 8px", fontSize: 11, color: "#fff",
+                    outline: "none", width: "100%", boxSizing: "border-box",
+                  }}
+                />
               </div>
             );
           })}
@@ -1541,10 +1581,11 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
         <OnboardingModal
           client={onboardingClient}
           onClose={() => setOnboardingClient(null)}
-          onUpdate={(nextSteps) => {
+          onUpdate={(nextSteps, nextUrls) => {
             const allDone = nextSteps.every(Boolean);
             updateClient(onboardingClient.name, {
               onboardingSteps: nextSteps,
+              onboardingUrls: nextUrls,
               onboarding: allDone ? "Onboard Complete" : "Pending",
             });
             setOnboardingClient(null);
