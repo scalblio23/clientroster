@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.88</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.89</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1022,8 +1022,81 @@ function suggestViewName(sortKey, sortDir) {
 
 const ALL_COL_KEYS = COL_DEFS.filter((c) => c.key !== "name").map((c) => c.key);
 
-function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumColors, updateEnumColor, nicheOptions, addNicheOption, currentUser }) {
+function AddClientModal({ onAdd, onClose }) {
+  const [name, setName]   = useState("");
+  const [color, setColor] = useState("#ff8a3d");
+  const nameRef = useRef(null);
+
+  useEffect(() => { nameRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const commit = () => {
+    const n = name.trim();
+    if (!n) return;
+    onAdd(n, color);
+    onClose();
+  };
+
+  const PALETTE = ["#ff8a3d","#f0674a","#fbbf24","#34d399","#5b9bff","#a78bfa","#e879f9","#fb923c","#60a5fa","#4ade80","#f43f5e","#c084fc","#38bdf8","#a3e635","#fb7185","#fdba74"];
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", zIndex: 9000, display: "grid", placeItems: "center", padding: 24 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...GLASS, borderRadius: 22, padding: 32, width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: C.text }}>New client</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, display: "grid", placeItems: "center" }}><X size={18} /></button>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", color: C.muted, marginBottom: 8 }}>Name</div>
+          <input
+            ref={nameRef}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && commit()}
+            placeholder="Client name"
+            style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: `1px solid ${C.cardBorder}`, color: C.text, borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: FONT }}
+          />
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", color: C.muted, marginBottom: 10 }}>Colour</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            {PALETTE.map((hex) => (
+              <button key={hex} onClick={() => setColor(hex)} style={{
+                width: 28, height: 28, borderRadius: 8, background: hex, border: color === hex ? "3px solid #fff" : "3px solid transparent",
+                cursor: "pointer", boxShadow: color === hex ? `0 0 0 2px ${hex}` : "none", transition: "border .1s",
+              }} />
+            ))}
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} title="Custom colour"
+              style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", padding: 0, background: "none" }} />
+          </div>
+        </div>
+
+        {/* preview */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12 }}>
+          <ClientIcon color={color} name={name || "?"} size={36} />
+          <span style={{ fontSize: 15, fontWeight: 600, color: name ? C.text : C.faint }}>{name || "Client name"}</span>
+        </div>
+
+        <button onClick={commit} style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+          background: name.trim() ? `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})` : "rgba(255,255,255,0.08)",
+          color: name.trim() ? "#0a0a0a" : C.faint, border: "none", borderRadius: 12,
+          padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: name.trim() ? "pointer" : "default",
+        }}><Plus size={16} /> Add client</button>
+      </div>
+    </div>
+  );
+}
+
+function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addClient, enumColors, updateEnumColor, nicheOptions, addNicheOption, currentUser }) {
   const [logClient, setLogClient] = useState(null);
+  const [addingClient, setAddingClient] = useState(false);
   const [view, setView] = useState("table");
   const [propOpen, setPropOpen] = useState(false);
   const propRef = useRef(null);
@@ -1137,7 +1210,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
           right={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 16 }}>
               <ViewToggle view={view} setView={setView} />
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: C.orangeBright, cursor: "pointer" }}>
+              <span onClick={() => setAddingClient(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, color: C.orangeBright, cursor: "pointer" }}>
                 <Plus size={15} /> Add client
               </span>
             </span>
@@ -1324,6 +1397,12 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, enumCo
             const logs = [...(existing?.logs || []), entry];
             updateClient(logClient.name, { logs });
           }}
+        />
+      )}
+      {addingClient && (
+        <AddClientModal
+          onAdd={(name, color) => addClient(name, color)}
+          onClose={() => setAddingClient(false)}
         />
       )}
     </>
@@ -2943,6 +3022,18 @@ export default function Roster() {
     if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
     clientSaveTimer.current = setTimeout(flushClients, 0);
   };
+  const addClient = (name, color) => {
+    const newClient = { name, color, mrr: 0, start: new Date().toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }), status: "neutral", adStatus: "Not Live", onboarding: "Pending", priority: "Medium", phone: "", email: "", notes: "", adSpend: 0, leads: 0 };
+    setClients((prev) => {
+      const next = [...prev, newClient];
+      clientsRef.current = next;
+      pendingClientChanges.current = [...pendingClientChanges.current, { action: "client_added", detail: `Added client: "${name}"` }];
+      if (clientSaveTimer.current) clearTimeout(clientSaveTimer.current);
+      clientSaveTimer.current = setTimeout(flushClients, 0);
+      pendingClientPatches.current = { ...pendingClientPatches.current, [name]: newClient };
+      return next;
+    });
+  };
   const addTask = (client, text, person = "", status = "To Do", priority = "Medium", due = "") => {
     const newTask = { id: uid(), client, text, priority, due, deps: [], loom: "", person, status };
     setAndSaveTasks((ts) => [...ts, newTask], { action: "task_added", detail: `Added task for ${client}: "${text}"` });
@@ -3010,7 +3101,7 @@ export default function Roster() {
       <div style={{ maxWidth: "98vw", margin: "0 auto", padding: "40px 28px 100px" }}>
         <Header user={user} onLogout={logout} saveStatus={saveStatus} />
         <Tabs tab={tab} setTab={setTab} />
-        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} currentUser={user?.username || user?.name || "unknown"} />}
+        {tab === "Clients" && <ClientsPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} addClient={addClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Client Stats" && <ClientStatsPage clients={clients} updateClient={updateClient} enumColors={enumColors} />}
         {tab === "Call Schedule" && <CallSchedulePage clients={clients} schedule={schedule} setSchedule={saveSchedule} />}
