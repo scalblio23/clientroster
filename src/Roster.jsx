@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.96</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.97</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1075,24 +1075,10 @@ function OnboardingModal({ client, onClose, onUpdate }) {
   const checkedRef = useRef(checked);
   checkedRef.current = checked;
 
-  const firstUnchecked = checked.indexOf(false);
-
-  const toggle = (idx) => {
+  const toggleIdx = (idx) => {
     setChecked((prev) => {
-      const fi = prev.indexOf(false);
-      if (idx !== fi) return prev;
       const next = [...prev];
-      next[idx] = true;
-      return next;
-    });
-  };
-
-  const uncheck = (idx) => {
-    setChecked((prev) => {
-      const last = prev.lastIndexOf(true);
-      if (idx !== last) return prev;
-      const next = [...prev];
-      next[idx] = false;
+      next[idx] = !next[idx];
       return next;
     });
   };
@@ -1136,35 +1122,28 @@ function OnboardingModal({ client, onClose, onUpdate }) {
         <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
           {ONBOARDING_STEPS.map((label, idx) => {
             const isChecked = checked[idx];
-            const isNext = idx === firstUnchecked;
-            const isLocked = !isChecked && !isNext;
             return (
               <div
                 key={idx}
-                onClick={() => {
-                  if (isChecked) uncheck(idx);
-                  else if (isNext) toggle(idx);
-                }}
+                onClick={() => toggleIdx(idx)}
                 style={{
                   display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
-                  borderRadius: 8, cursor: isLocked ? "default" : "pointer",
-                  background: isChecked ? "rgba(52,211,153,0.08)" : isNext ? "rgba(255,138,61,0.08)" : "transparent",
-                  opacity: isLocked ? 0.4 : 1,
+                  borderRadius: 8, cursor: "pointer",
+                  background: isChecked ? "rgba(52,211,153,0.08)" : "transparent",
                   transition: "background 0.15s",
                 }}
               >
                 <div style={{
                   width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-                  border: `2px solid ${isChecked ? "#34d399" : isNext ? "#ff8a3d" : "rgba(255,255,255,0.2)"}`,
+                  border: `2px solid ${isChecked ? "#34d399" : "rgba(255,255,255,0.2)"}`,
                   background: isChecked ? "#34d399" : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   {isChecked && <span style={{ color: "#000", fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>}
                 </div>
-                <span style={{ fontSize: 13, color: isChecked ? "#34d399" : isNext ? "#fff" : "#9aa0a8", fontWeight: isNext ? 600 : 400 }}>
+                <span style={{ fontSize: 13, color: isChecked ? "#34d399" : "#9aa0a8" }}>
                   {label}
                 </span>
-                {isNext && <span style={{ marginLeft: "auto", fontSize: 10, color: "#ff8a3d", fontWeight: 600 }}>NEXT</span>}
               </div>
             );
           })}
