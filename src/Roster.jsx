@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.89</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.90</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -996,7 +996,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
                   borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
                 }}>
                   {cols.map((col) => (
-                    <div key={col.key} style={{ overflow: "hidden", minWidth: 0 }}>{renderCell(col.key, c, cTasks)}</div>
+                    <div key={col.key} style={{ overflow: "visible", minWidth: 0 }}>{renderCell(col.key, c, cTasks)}</div>
                   ))}
                 </div>
               );
