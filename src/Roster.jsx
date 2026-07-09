@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.93</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.94</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -745,7 +745,7 @@ const NAME_COL_W = 206;
 const ROW_H      = 54;
 const HDR_H      = 42;
 
-function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir, onOpenLog, colOrder, setColOrder, hiddenCols }) {
+function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumColors = DEFAULT_COLORS, updateEnumColor, nicheOptions, addNicheOption, sortKey, setSortKey, sortDir, setSortDir, onOpenLog, colOrder, setColOrder, hiddenCols, onOpenOnboarding }) {
   const [dropIdx, setDropIdx] = useState(null);
   const draggingKey = useRef(null);
   const didDrag = useRef(false);
@@ -849,7 +849,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
       case "vibe": return <SelectPicker field="vibe" value={c.status || "neutral"} options={VIBE_OPTIONS} colors={enumColors.vibe} onChangeValue={(v) => updateClient(c.name, { status: v })} onChangeColor={updateEnumColor} labelMap={VIBE_LABELS} />;
       case "adStatus": return <SelectPicker field="adStatus" value={c.adStatus || "Not Live"} options={AD_STATUS_ORDER} colors={enumColors.adStatus} onChangeValue={(v) => updateClient(c.name, { adStatus: v })} onChangeColor={updateEnumColor} />;
       case "statusReport": return <BlurInput value={c.statusReport || ""} onCommit={(v) => updateClient(c.name, { statusReport: v })} placeholder="Status…" style={{ ...cellInput({ fontSize: 13 }) }} />;
-      case "onboarding": return <OnboardingBar client={c} onClick={() => setOnboardingClient(c)} />;
+      case "onboarding": return <OnboardingBar client={c} onClick={() => onOpenOnboarding?.(c)} />;
       case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
       case "pifMrr": return <SelectPicker field="pifMrr" value={c.pifMrr || "MRR"} options={PIF_MRR_ORDER} colors={enumColors.pifMrr || DEFAULT_COLORS.pifMrr} onChangeValue={(v) => updateClient(c.name, { pifMrr: v })} onChangeColor={updateEnumColor} />;
       case "mrr": return <BlurInput type="number" value={c.mrr ?? 0} onCommit={(v) => updateClient(c.name, { mrr: Number(v) })} style={{ ...cellInput({ fontSize: 14, fontWeight: 700 }) }} />;
@@ -1523,7 +1523,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} />
+          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} onOpenOnboarding={setOnboardingClient} />
         )}
       </div>
       {logClient && (
