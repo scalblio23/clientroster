@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.95</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.96</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1072,26 +1072,34 @@ function OnboardingModal({ client, onClose, onUpdate }) {
   const [checked, setChecked] = useState(() =>
     ONBOARDING_STEPS.map((_, i) => !!(client.onboardingSteps || [])[i])
   );
+  const checkedRef = useRef(checked);
+  checkedRef.current = checked;
+
   const firstUnchecked = checked.indexOf(false);
 
-  const commit = (next) => {
-    setChecked(next);
-    onUpdate(next);
-  };
-
   const toggle = (idx) => {
-    if (idx !== firstUnchecked) return;
-    const next = [...checked];
-    next[idx] = true;
-    commit(next);
+    setChecked((prev) => {
+      const fi = prev.indexOf(false);
+      if (idx !== fi) return prev;
+      const next = [...prev];
+      next[idx] = true;
+      return next;
+    });
   };
 
   const uncheck = (idx) => {
-    const lastChecked = checked.lastIndexOf(true);
-    if (idx !== lastChecked) return;
-    const next = [...checked];
-    next[idx] = false;
-    commit(next);
+    setChecked((prev) => {
+      const last = prev.lastIndexOf(true);
+      if (idx !== last) return prev;
+      const next = [...prev];
+      next[idx] = false;
+      return next;
+    });
+  };
+
+  const handleClose = () => {
+    onUpdate(checkedRef.current);
+    onClose();
   };
 
   const done = checked.filter(Boolean).length;
@@ -1102,7 +1110,7 @@ function OnboardingModal({ client, onClose, onUpdate }) {
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div style={{ background: "#1a1d2e", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: "28px 32px", width: 420, maxHeight: "85vh", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1110,7 +1118,7 @@ function OnboardingModal({ client, onClose, onUpdate }) {
             <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Onboarding</div>
             <div style={{ fontSize: 12, color: "#9aa0a8", marginTop: 2 }}>{client.name}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#9aa0a8", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+          <button onClick={handleClose} style={{ background: "none", border: "none", color: "#9aa0a8", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
         {/* progress bar */}
@@ -1560,7 +1568,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
               onboardingSteps: nextSteps,
               onboarding: allDone ? "Onboard Complete" : "Pending",
             });
-            setOnboardingClient((prev) => ({ ...prev, onboardingSteps: nextSteps }));
+            setOnboardingClient(null);
           }}
         />
       )}
