@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { api } from "./api.js";
 import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2, LogOut, Filter } from "lucide-react";
 
@@ -293,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.02</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.03</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1945,23 +1946,69 @@ function ClientLogModal({ client, currentUser, onClose, onAddLog, onAddTask }) {
 /* ---------- simple chip picker (no color editing) ---------- */
 function ChipPicker({ value, options, colors, labelMap, onChange, placeholder = "Select…" }) {
   const [open, setOpen] = useState(false);
-  const [dropUp, setDropUp] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, dropUp: false });
+  const btnRef = useRef(null);
+
   useEffect(() => {
     if (!open) return;
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setDropUp(window.innerHeight - rect.bottom < 180);
-    }
-    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const update = () => {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom;
+      const dropUp = spaceBelow < 200;
+      setPos({ top: dropUp ? r.top : r.bottom + 6, left: r.left, dropUp });
+    };
+    update();
+    const close = (e) => {
+      if (!btnRef.current?.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", update, true);
+    };
   }, [open]);
+
   const color = (value && colors[value]) || "#9aa0a8";
   const s = value ? chipStyle(color) : { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" };
+
+  const dropdown = open && createPortal(
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: "fixed",
+        top: pos.dropUp ? undefined : pos.top,
+        bottom: pos.dropUp ? window.innerHeight - pos.top : undefined,
+        left: pos.left,
+        zIndex: 99999,
+        background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.7)", minWidth: 160,
+      }}
+    >
+      {options.map((opt) => {
+        const optColor = colors[opt] || "#9aa0a8";
+        const isSelected = opt === value;
+        return (
+          <div key={opt} onClick={() => { onChange(opt); setOpen(false); }} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "7px 10px", borderRadius: 8, cursor: "pointer",
+            background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
+            border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: optColor, flexShrink: 0 }} />
+            <span style={{ color: optColor, fontSize: 13, fontWeight: 500 }}>{labelMap?.[opt] || opt}</span>
+          </div>
+        );
+      })}
+    </div>,
+    document.body
+  );
+
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <button onClick={() => setOpen((o) => !o)} style={{
+    <div style={{ display: "inline-flex" }}>
+      <button ref={btnRef} onClick={() => setOpen((o) => !o)} style={{
         display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
         background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
         borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
@@ -1970,32 +2017,7 @@ function ChipPicker({ value, options, colors, labelMap, onChange, placeholder = 
         {value && <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />}
         {value ? (labelMap?.[value] || value) : placeholder}
       </button>
-      {open && (
-        <div style={{
-          position: "absolute",
-          ...(dropUp ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
-          left: 0, zIndex: 999,
-          background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 160,
-        }}>
-          {options.map((opt) => {
-            const optColor = colors[opt] || "#9aa0a8";
-            const isSelected = opt === value;
-            return (
-              <div key={opt} onClick={() => { onChange(opt); setOpen(false); }} style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "7px 10px", borderRadius: 8, cursor: "pointer",
-                background: isSelected ? `rgba(${hexToRgb(optColor)},0.14)` : "transparent",
-                border: isSelected ? `1px solid rgba(${hexToRgb(optColor)},0.28)` : "1px solid transparent",
-              }}>
-                <span style={{ width: 8, height: 8, borderRadius: 99, background: optColor, flexShrink: 0 }} />
-                <span style={{ color: optColor, fontSize: 13, fontWeight: 500 }}>{labelMap?.[opt] || opt}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }
