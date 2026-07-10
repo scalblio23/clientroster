@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.06</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.07</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2087,18 +2087,18 @@ const selectStyle = {
 };
 
 const TASK_COLS = [
-  { key: "_log",     label: "" },
-  { key: "text",     label: "Task" },
-  { key: "client",   label: "Client" },
-  { key: "status",   label: "Status" },
-  { key: "person",   label: "Person" },
-  { key: "priority", label: "Priority" },
-  { key: "due",      label: "Due date" },
-  { key: "deps",     label: "Dependencies" },
-  { key: "loom",     label: "Loom" },
-  { key: "_del",     label: "" },
+  { key: "_log",     label: "",             width: "28px",   fixed: true },
+  { key: "text",     label: "Task",         width: "1.8fr" },
+  { key: "client",   label: "Client",       width: "1.1fr" },
+  { key: "status",   label: "Status",       width: "1fr" },
+  { key: "person",   label: "Person",       width: "1fr" },
+  { key: "priority", label: "Priority",     width: "1fr" },
+  { key: "due",      label: "Due date",     width: "1.2fr" },
+  { key: "deps",     label: "Dependencies", width: "1.3fr" },
+  { key: "loom",     label: "Loom",         width: "1.3fr" },
+  { key: "_del",     label: "",             width: "0.4fr", fixed: true },
 ];
-const TASK_GRID = "28px 1.8fr 1.1fr 1fr 1fr 1fr 1.2fr 1.3fr 1.3fr 0.4fr";
+const TASK_COL_KEYS_REORDERABLE = TASK_COLS.filter((c) => !c.fixed).map((c) => c.key);
 const TASK_PRIORITY_COLORS = { High: "#f0674a", Medium: "#fbbf24", Low: "#9aa0a8" };
 const TEAM = ["Owen", "Henry", "Cody"];
 const TEAM_COLORS = { Owen: "#5b9bff", Henry: "#ff8a3d", Cody: "#34d399" };
@@ -2339,6 +2339,10 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
   const [filters, setFilters] = useState([]);
   const [cfgOpen, setCfgOpen] = useState(false);
   const cfgRef = useRef(null);
+  const [taskColOrder, setTaskColOrder] = useState(TASK_COL_KEYS_REORDERABLE);
+  const [taskHiddenCols, setTaskHiddenCols] = useState(new Set());
+  const dragTaskColIdx = useRef(null);
+  const [dragOverTaskColIdx, setDragOverTaskColIdx] = useState(null);
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
   const logTask = tasks.find((t) => t.id === logTaskId) || null;
@@ -2399,10 +2403,13 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
       })
     : filteredTasks;
 
-  const cols = TASK_COLS;
-  const grid = TASK_GRID;
+  const visibleTaskColKeys = ["_log", ...taskColOrder.filter((k) => !taskHiddenCols.has(k)), "_del"];
+  const cols = visibleTaskColKeys.map((k) => TASK_COLS.find((c) => c.key === k)).filter(Boolean);
+  const grid = cols.map((c) => c.width).join(" ");
 
-  const TASK_SORT_COLS = TASK_COLS.filter((c) => !["_log", "deps", "loom", "_del"].includes(c.key));
+  const TASK_SORT_COLS = TASK_COL_KEYS_REORDERABLE
+    .map((k) => TASK_COLS.find((c) => c.key === k))
+    .filter((c) => c && !["deps", "loom"].includes(c.key));
 
   return (
     <>
@@ -2432,17 +2439,17 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                 onClick={() => setCfgOpen((o) => !o)}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
-                  background: cfgOpen || filters.length || sortKey ? C.orangeSoft : "rgba(255,255,255,0.05)",
-                  border: `1px solid ${cfgOpen || filters.length || sortKey ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
-                  color: cfgOpen || filters.length || sortKey ? C.orangeBright : C.muted,
+                  background: cfgOpen || filters.length || sortKey || taskHiddenCols.size ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${cfgOpen || filters.length || sortKey || taskHiddenCols.size ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                  color: cfgOpen || filters.length || sortKey || taskHiddenCols.size ? C.orangeBright : C.muted,
                   borderRadius: 999, padding: "5px 14px", fontSize: 12.5, fontWeight: 500,
                   cursor: "pointer", fontFamily: FONT, transition: "background .15s",
                 }}
               >
                 <Filter size={12} /> Configure view
-                {(filters.length > 0 || sortKey) && (
+                {(filters.length > 0 || sortKey || taskHiddenCols.size > 0) && (
                   <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>
-                    {(sortKey ? 1 : 0) + filters.length}
+                    {(sortKey ? 1 : 0) + filters.length + taskHiddenCols.size}
                   </span>
                 )}
               </button>
@@ -2509,6 +2516,57 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                       </div>
                     </div>
                   </div>
+
+                  {/* Columns */}
+                  <div style={{ padding: "12px 16px 6px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                      <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase" }}>
+                        Columns {taskHiddenCols.size > 0 && `· ${taskColOrder.length - taskHiddenCols.size}/${taskColOrder.length}`}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.faint }}>drag to reorder</div>
+                    </div>
+                    <div style={{ maxHeight: 220, overflowY: "auto" }} className="glass-scroll">
+                      {taskColOrder.map((key, i) => {
+                        const def = TASK_COLS.find((c) => c.key === key);
+                        if (!def) return null;
+                        const visible = !taskHiddenCols.has(key);
+                        const isDragOver = dragOverTaskColIdx === i;
+                        return (
+                          <div
+                            key={key}
+                            draggable
+                            onDragStart={() => { dragTaskColIdx.current = i; }}
+                            onDragOver={(e) => { e.preventDefault(); setDragOverTaskColIdx(i); }}
+                            onDragLeave={() => setDragOverTaskColIdx(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const from = dragTaskColIdx.current;
+                              if (from === null || from === i) { setDragOverTaskColIdx(null); return; }
+                              const next = [...taskColOrder];
+                              next.splice(i, 0, next.splice(from, 1)[0]);
+                              setTaskColOrder(next);
+                              dragTaskColIdx.current = null;
+                              setDragOverTaskColIdx(null);
+                            }}
+                            onDragEnd={() => { dragTaskColIdx.current = null; setDragOverTaskColIdx(null); }}
+                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px", borderTop: isDragOver ? `2px solid ${C.orange}` : "2px solid transparent", userSelect: "none" }}
+                          >
+                            <span style={{ color: C.faint, fontSize: 13, cursor: "grab", flexShrink: 0, lineHeight: 1 }}>⠿</span>
+                            <button onClick={() => setTaskHiddenCols((prev) => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; })} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flex: 1, textAlign: "left" }}>
+                              <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0, background: visible ? C.orange : "rgba(255,255,255,0.08)", border: `1px solid ${visible ? C.orange : "rgba(255,255,255,0.18)"}`, display: "grid", placeItems: "center" }}>
+                                {visible && <Check size={9} color="#000" strokeWidth={3} />}
+                              </span>
+                              <span style={{ fontSize: 13, color: visible ? C.text : C.faint, fontFamily: FONT }}>{def.label}</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ padding: "8px 0 4px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8, marginTop: 4 }}>
+                      <button onClick={() => setTaskHiddenCols(new Set())} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.text, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Show all</button>
+                      <button onClick={() => setTaskHiddenCols(new Set(TASK_COL_KEYS_REORDERABLE))} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Hide all</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -2548,68 +2606,41 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                 const c = byName[t.client];
                 const hasLogs = (t.logs?.length || 0) > 0;
                 const prioColor = TASK_PRIORITY_COLORS[t.priority] || TASK_PRIORITY_COLORS.Medium;
+                const renderCell = (key) => {
+                  switch (key) {
+                    case "_log": return (
+                      <button key="_log" onClick={() => setLogTaskId(t.id)} title="View task log" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 99, background: prioColor, display: "block", boxShadow: `0 0 6px ${prioColor}88`, flexShrink: 0 }} />
+                        {hasLogs && <span style={{ position: "absolute", top: -3, right: -3, width: 6, height: 6, borderRadius: 99, background: C.orange, border: "1.5px solid #0e0e14" }} />}
+                      </button>
+                    );
+                    case "text": return (
+                      <input key="text" value={t.text} onChange={(e) => updateTask(t.id, { text: e.target.value })} placeholder="Task name…" style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 14.5, fontWeight: 600, fontFamily: FONT }} />
+                    );
+                    case "client": return (
+                      <div key="client" style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, position: "relative" }}>
+                        <ClientIcon color={c?.color || "#9aa0a8"} name={t.client} size={26} />
+                        <select value={t.client} onChange={(e) => updateTask(t.id, { client: e.target.value })} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}>
+                          {clients.map((cl) => <option key={cl.name} value={cl.name}>{cl.name}</option>)}
+                        </select>
+                        <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
+                      </div>
+                    );
+                    case "status": return <ChipPicker key="status" value={t.status || "To Do"} options={TASK_STATUS} colors={TASK_STATUS_COLORS} onChange={(v) => updateTask(t.id, { status: v })} />;
+                    case "person": return <ChipPicker key="person" value={t.person || ""} options={TEAM} colors={TEAM_COLORS} placeholder="—" onChange={(v) => updateTask(t.id, { person: v })} />;
+                    case "priority": return <div key="priority"><PriorityChip value={t.priority} onChange={(p) => updateTask(t.id, { priority: p })} /></div>;
+                    case "due": return <DueCell key="due" value={t.due} onChange={(v) => updateTask(t.id, { due: v })} />;
+                    case "deps": return <div key="deps"><DepsCell deps={t.deps} onOpen={() => setDepsFor(t.id)} /></div>;
+                    case "loom": return <LoomCell key="loom" value={t.loom} onChange={(v) => updateTask(t.id, { loom: v })} />;
+                    case "_del": return (
+                      <button key="_del" onClick={() => removeTask(t.id)} aria-label="Delete task" style={{ border: "none", background: "transparent", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center", justifySelf: "end" }}><Trash2 size={15} /></button>
+                    );
+                    default: return null;
+                  }
+                };
                 return (
-                  <div key={t.id} style={{
-                    display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 10,
-                    padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
-                  }}>
-                    {/* priority dot / log trigger */}
-                    <button
-                      onClick={() => setLogTaskId(t.id)}
-                      title="View task log"
-                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
-                    >
-                      <span style={{ width: 10, height: 10, borderRadius: 99, background: prioColor, display: "block", boxShadow: `0 0 6px ${prioColor}88`, flexShrink: 0 }} />
-                      {hasLogs && <span style={{ position: "absolute", top: -3, right: -3, width: 6, height: 6, borderRadius: 99, background: C.orange, border: "1.5px solid #0e0e14" }} />}
-                    </button>
-                    {/* task = primary column */}
-                    <input
-                      value={t.text} onChange={(e) => updateTask(t.id, { text: e.target.value })}
-                      placeholder="Task name…"
-                      style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 14.5, fontWeight: 600, fontFamily: FONT }}
-                    />
-                    {/* client */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, position: "relative" }}>
-                      <ClientIcon color={c?.color || "#9aa0a8"} name={t.client} size={26} />
-                      <select
-                        value={t.client}
-                        onChange={(e) => updateTask(t.id, { client: e.target.value })}
-                        style={{
-                          position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%",
-                        }}
-                      >
-                        {clients.map((cl) => <option key={cl.name} value={cl.name}>{cl.name}</option>)}
-                      </select>
-                      <span style={{ fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.client}</span>
-                    </div>
-                    {/* status */}
-                    <ChipPicker
-                      value={t.status || "To Do"}
-                      options={TASK_STATUS}
-                      colors={TASK_STATUS_COLORS}
-                      onChange={(v) => updateTask(t.id, { status: v })}
-                    />
-                    {/* person */}
-                    <ChipPicker
-                      value={t.person || ""}
-                      options={TEAM}
-                      colors={TEAM_COLORS}
-                      placeholder="—"
-                      onChange={(v) => updateTask(t.id, { person: v })}
-                    />
-                    {/* priority */}
-                    <div><PriorityChip value={t.priority} onChange={(p) => updateTask(t.id, { priority: p })} /></div>
-                    {/* due */}
-                    <DueCell value={t.due} onChange={(v) => updateTask(t.id, { due: v })} />
-                    {/* dependencies */}
-                    <div><DepsCell deps={t.deps} onOpen={() => setDepsFor(t.id)} /></div>
-                    {/* loom */}
-                    <LoomCell value={t.loom} onChange={(v) => updateTask(t.id, { loom: v })} />
-                    {/* delete */}
-                    <button onClick={() => removeTask(t.id)} aria-label="Delete task" style={{
-                      border: "none", background: "transparent", cursor: "pointer", color: C.faint,
-                      display: "grid", placeItems: "center", justifySelf: "end",
-                    }}><Trash2 size={15} /></button>
+                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 10, padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)" }}>
+                    {cols.map((col) => renderCell(col.key))}
                   </div>
                 );
               })}
