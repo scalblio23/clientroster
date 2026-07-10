@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.00</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.01</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2271,7 +2271,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
             }}><Plus size={14} /> New task</button>
           </div>
         } />
-        <div style={{ ...GLASS, borderRadius: 20, overflow: "hidden" }}>
+        <div style={{ ...GLASS, borderRadius: 20 }}>
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 1260 }}>
               <div style={{ display: "grid", gridTemplateColumns: grid, padding: "14px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
