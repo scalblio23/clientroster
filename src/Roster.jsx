@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.03</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.04</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1278,16 +1278,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
   const [view, setView] = useState("table");
   const [propOpen, setPropOpen] = useState(false);
   const propRef = useRef(null);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const filterRef = useRef(null);
   const [filters, setFilters] = useState([]);
-
-  useEffect(() => {
-    if (!filterOpen) return;
-    const close = (e) => { if (!filterRef.current?.contains(e.target)) setFilterOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [filterOpen]);
 
   const FILTER_FIELDS = [
     { key: "clientStatus", label: "Client Status", type: "enum", options: CLIENT_STATUS_ORDER },
@@ -1371,7 +1362,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
 
   const saveView = () => {
     const name = viewDraft.trim() || suggestViewName(sortKey, sortDir) || "My View";
-    const next = [...savedViews.filter((v) => v.name !== name), { name, sortKey, sortDir, colOrder, hiddenCols: [...hiddenCols] }];
+    const next = [...savedViews.filter((v) => v.name !== name), { name, sortKey, sortDir, colOrder, hiddenCols: [...hiddenCols], filters }];
     setSavedViews(next);
     localStorage.setItem("roster_views", JSON.stringify(next));
     setSavingView(false);
@@ -1403,6 +1394,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
     setSortDir(v.sortDir ?? "asc");
     setColOrder(mergeColOrder(v.colOrder));
     setHiddenCols(new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []));
+    setFilters(Array.isArray(v.filters) ? v.filters : []);
   };
 
   const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
@@ -1411,6 +1403,12 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
     const savedHidden = new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []);
     if (savedHidden.size !== hiddenCols.size) return false;
     for (const k of savedHidden) { if (!hiddenCols.has(k)) return false; }
+    const savedFilters = Array.isArray(v.filters) ? v.filters : [];
+    if (savedFilters.length !== filters.length) return false;
+    for (let i = 0; i < savedFilters.length; i++) {
+      const sf = savedFilters[i]; const cf = filters[i];
+      if (sf.field !== cf.field || sf.op !== cf.op || sf.value !== cf.value) return false;
+    }
     return true;
   })?.name || null;
 
@@ -1444,16 +1442,16 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
           }
         />
 
-        {/* saved views bar */}
+        {/* views + configure bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
           {/* default chip */}
           <button
-            onClick={() => { setSortKey(null); setSortDir("asc"); }}
+            onClick={() => { setSortKey(null); setSortDir("asc"); setFilters([]); }}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5,
-              background: !sortKey ? C.orangeSoft : "rgba(255,255,255,0.05)",
-              border: `1px solid ${!sortKey ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
-              color: !sortKey ? C.orangeBright : C.muted,
+              background: !activeViewName && !sortKey && !filters.length ? C.orangeSoft : "rgba(255,255,255,0.05)",
+              border: `1px solid ${!activeViewName && !sortKey && !filters.length ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+              color: !activeViewName && !sortKey && !filters.length ? C.orangeBright : C.muted,
               borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
               cursor: "pointer", fontFamily: FONT,
             }}
@@ -1470,222 +1468,129 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
             const fg = active ? C.orangeBright : C.muted;
             return (
               <div key={v.name} style={{ display: "inline-flex", alignItems: "center", gap: 0 }}>
-                {/* view label */}
-                <button
-                  onClick={() => applyView(v)}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    background: bg, border: `1px solid ${bd}`, color: fg,
-                    borderRadius: "999px 0 0 999px", padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
-                    cursor: "pointer", fontFamily: FONT,
-                  }}
-                >
+                <button onClick={() => applyView(v)} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: bg, border: `1px solid ${bd}`, color: fg, borderRadius: "999px 0 0 999px", padding: "5px 12px", fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>
                   {isDefault && <span title="Default view" style={{ fontSize: 11 }}>★</span>}
                   {v.name}
+                  {Array.isArray(v.filters) && v.filters.length > 0 && <span style={{ background: active ? C.orange : "rgba(255,255,255,0.15)", color: active ? "#000" : C.muted, borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>{v.filters.length}</span>}
                 </button>
-                {/* set-as-default star button */}
-                <button
-                  onClick={() => setDefault(v.name)}
-                  title={isDefault ? "Remove as default" : "Set as default view"}
-                  style={{
-                    display: "grid", placeItems: "center",
-                    background: bg, border: `1px solid ${bd}`, borderLeft: "none",
-                    color: isDefault ? C.orange : fg,
-                    padding: "5px 7px", cursor: "pointer", fontSize: 12,
-                  }}
-                >☆</button>
-                {/* delete button */}
-                <button
-                  onClick={() => deleteView(v.name)}
-                  aria-label="Delete view"
-                  style={{
-                    display: "grid", placeItems: "center",
-                    background: bg, border: `1px solid ${bd}`, borderLeft: "none",
-                    color: fg, borderRadius: "0 999px 999px 0", padding: "5px 8px",
-                    cursor: "pointer",
-                  }}
-                ><X size={11} /></button>
+                <button onClick={() => setDefault(v.name)} title={isDefault ? "Remove as default" : "Set as default view"} style={{ display: "grid", placeItems: "center", background: bg, border: `1px solid ${bd}`, borderLeft: "none", color: isDefault ? C.orange : fg, padding: "5px 7px", cursor: "pointer", fontSize: 12 }}>☆</button>
+                <button onClick={() => deleteView(v.name)} aria-label="Delete view" style={{ display: "grid", placeItems: "center", background: bg, border: `1px solid ${bd}`, borderLeft: "none", color: fg, borderRadius: "0 999px 999px 0", padding: "5px 8px", cursor: "pointer" }}><X size={11} /></button>
               </div>
             );
           })}
 
-          {/* save view button / inline input */}
-          {!savingView && (
-            <button
-              onClick={() => { setSavingView(true); setViewDraft(suggestViewName(sortKey, sortDir)); }}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                background: "transparent", border: "1px dashed rgba(255,255,255,0.18)",
-                color: C.muted, borderRadius: 999, padding: "5px 12px", fontSize: 12.5,
-                cursor: "pointer", fontFamily: FONT,
-              }}
-            ><Plus size={11} /> Save view</button>
-          )}
-          {savingView && (
+          {/* save view */}
+          {!savingView ? (
+            <button onClick={() => { setSavingView(true); setViewDraft(suggestViewName(sortKey, sortDir)); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "1px dashed rgba(255,255,255,0.18)", color: C.muted, borderRadius: 999, padding: "5px 12px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>
+              <Plus size={11} /> Save view
+            </button>
+          ) : (
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <input
-                autoFocus
-                value={viewDraft}
-                onChange={(e) => setViewDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") saveView(); if (e.key === "Escape") { setSavingView(false); setViewDraft(""); } }}
-                style={{
-                  background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)",
-                  color: C.text, borderRadius: 8, padding: "5px 10px", fontSize: 12.5,
-                  fontFamily: FONT, outline: "none", width: 200,
-                }}
-              />
+              <input autoFocus value={viewDraft} onChange={(e) => setViewDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveView(); if (e.key === "Escape") { setSavingView(false); setViewDraft(""); } }} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)", color: C.text, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, fontFamily: FONT, outline: "none", width: 200 }} />
               <button onClick={saveView} style={{ background: C.orangeSoft, border: `1px solid ${C.orangeSoftBorder}`, color: C.orangeBright, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Save</button>
               <button onClick={() => { setSavingView(false); setViewDraft(""); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
             </div>
           )}
 
-          {/* filter */}
-          <div ref={filterRef} style={{ position: "relative", marginLeft: "auto" }}>
-            <button
-              onClick={() => setFilterOpen((o) => !o)}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                background: filterOpen || filters.length ? C.orangeSoft : "rgba(255,255,255,0.05)",
-                border: `1px solid ${filterOpen || filters.length ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
-                color: filterOpen || filters.length ? C.orangeBright : C.muted,
-                borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
-                cursor: "pointer", fontFamily: FONT, transition: "background .15s",
-              }}
-            >
-              <Filter size={12} />
-              Filter
-              {filters.length > 0 && <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>{filters.length}</span>}
-            </button>
-            {filterOpen && (
-              <div style={{
-                position: "absolute", top: "calc(100% + 8px)", right: 0,
-                ...GLASS, borderRadius: 16, minWidth: 320, padding: "12px 0",
-                boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999,
-              }}>
-                <div style={{ padding: "4px 14px 10px", fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                  Filter Clients
-                </div>
-                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {filters.map((f, idx) => {
-                    const def = FILTER_FIELDS.find((d) => d.key === f.field);
-                    return (
-                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        {/* field selector */}
-                        <select
-                          value={f.field}
-                          onChange={(e) => {
-                            const nd = FILTER_FIELDS.find((d) => d.key === e.target.value);
-                            updateFilter(idx, { field: e.target.value, op: nd?.type === "number" ? "gte" : "eq", value: nd?.type === "enum" ? nd.options[0] : "" });
-                          }}
-                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", flex: 1 }}
-                        >
-                          {FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
-                        </select>
-                        {/* operator */}
-                        <select
-                          value={f.op}
-                          onChange={(e) => updateFilter(idx, { op: e.target.value })}
-                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none" }}
-                        >
-                          {def?.type === "number" ? (
-                            <>
-                              <option value="gte">≥</option>
-                              <option value="lte">≤</option>
-                              <option value="eq">=</option>
-                            </>
-                          ) : (
-                            <>
-                              <option value="eq">is</option>
-                              <option value="neq">is not</option>
-                            </>
-                          )}
-                        </select>
-                        {/* value */}
-                        {def?.type === "enum" ? (
-                          <select
-                            value={f.value}
-                            onChange={(e) => updateFilter(idx, { value: e.target.value })}
-                            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", flex: 1 }}
-                          >
-                            {def.options.map((o) => <option key={o} value={o}>{def.labelMap?.[o] || o}</option>)}
-                          </select>
-                        ) : (
-                          <input
-                            type="number"
-                            value={f.value}
-                            onChange={(e) => updateFilter(idx, { value: e.target.value })}
-                            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", width: 70 }}
-                          />
-                        )}
-                        {/* remove */}
-                        <button onClick={() => removeFilter(idx)} style={{ background: "none", border: "none", color: C.faint, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px" }}>×</button>
-                      </div>
-                    );
-                  })}
-                  {/* add filter row */}
-                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                    <select
-                      defaultValue=""
-                      onChange={(e) => { if (e.target.value) { addFilter(e.target.value); e.target.value = ""; } }}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: C.muted, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", flex: 1 }}
-                    >
-                      <option value="" disabled>+ Add filter…</option>
-                      {FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
-                    </select>
-                    {filters.length > 0 && (
-                      <button onClick={() => setFilters([])} style={{ background: "none", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: C.faint, fontSize: 12, padding: "5px 10px", cursor: "pointer", fontFamily: FONT }}>
-                        Clear all
-                      </button>
-                    )}
-                  </div>
-                  {filters.length > 0 && (
-                    <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>
-                      Showing {applyFilters(clients).length} of {clients.length} clients
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* property visibility */}
-          <div ref={propRef} style={{ position: "relative" }}>
+          {/* unified configure panel */}
+          <div ref={propRef} style={{ position: "relative", marginLeft: "auto" }}>
             <button
               onClick={() => setPropOpen((o) => !o)}
               style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                background: propOpen ? C.orangeSoft : "rgba(255,255,255,0.05)",
-                border: `1px solid ${propOpen ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
-                color: propOpen ? C.orangeBright : C.muted,
-                borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: propOpen || filters.length || sortKey ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                border: `1px solid ${propOpen || filters.length || sortKey ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                color: propOpen || filters.length || sortKey ? C.orangeBright : C.muted,
+                borderRadius: 999, padding: "5px 14px", fontSize: 12.5, fontWeight: 500,
                 cursor: "pointer", fontFamily: FONT, transition: "background .15s",
               }}
             >
-              <Check size={12} /> Properties {hiddenCols.size > 0 && <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>{ALL_COL_KEYS.length - hiddenCols.size}/{ALL_COL_KEYS.length}</span>}
+              <Filter size={12} /> Configure view
+              {(filters.length > 0 || sortKey) && (
+                <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>
+                  {(sortKey ? 1 : 0) + filters.length}
+                </span>
+              )}
             </button>
             {propOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 8px)", right: 0,
-                ...GLASS, borderRadius: 16, minWidth: 220, padding: "10px 0",
-                boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999,
+                ...GLASS, borderRadius: 16, width: 380, padding: "0",
+                boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999, overflow: "hidden",
               }}>
-                <div style={{ padding: "4px 14px 10px", fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>Property Visibility</div>
-                <div style={{ maxHeight: 360, overflowY: "auto", padding: "6px 0" }} className="glass-scroll">
-                  {colOrder.map((key) => {
-                    const def = COL_DEFS.find((d) => d.key === key);
-                    if (!def) return null;
-                    const visible = !hiddenCols.has(key);
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => toggleCol(key)}
-                        style={{
-                          width: "100%", textAlign: "left", background: "none", border: "none",
-                          padding: "8px 14px", fontSize: 13, color: visible ? C.text : C.faint,
-                          cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: 10,
-                        }}
-                      >
-                        <span style={{
+
+                {/* ── Sort section ── */}
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 8 }}>Sort</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select
+                      value={sortKey || ""}
+                      onChange={(e) => setSortKey(e.target.value || null)}
+                      style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "6px 8px", fontFamily: FONT, outline: "none" }}
+                    >
+                      <option value="">No sort</option>
+                      {COL_DEFS.filter(d => d.key !== "tasks" && d.key !== "notes").map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                    </select>
+                    <select
+                      value={sortDir}
+                      onChange={(e) => setSortDir(e.target.value)}
+                      disabled={!sortKey}
+                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: sortKey ? C.text : C.faint, fontSize: 12, padding: "6px 8px", fontFamily: FONT, outline: "none" }}
+                    >
+                      <option value="asc">A → Z / Low → High</option>
+                      <option value="desc">Z → A / High → Low</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* ── Filter section ── */}
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 8 }}>
+                    Filter {filters.length > 0 && `· ${applyFilters(clients).length} of ${clients.length} shown`}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {filters.map((f, idx) => {
+                      const def = FILTER_FIELDS.find((d) => d.key === f.field);
+                      return (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <select value={f.field} onChange={(e) => { const nd = FILTER_FIELDS.find((d) => d.key === e.target.value); updateFilter(idx, { field: e.target.value, op: nd?.type === "number" ? "gte" : "eq", value: nd?.type === "enum" ? nd.options[0] : "" }); }} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                            {FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                          </select>
+                          <select value={f.op} onChange={(e) => updateFilter(idx, { op: e.target.value })} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                            {def?.type === "number" ? <><option value="gte">≥</option><option value="lte">≤</option><option value="eq">=</option></> : <><option value="eq">is</option><option value="neq">is not</option></>}
+                          </select>
+                          {def?.type === "enum" ? (
+                            <select value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                              {def.options.map((o) => <option key={o} value={o}>{def.labelMap?.[o] || o}</option>)}
+                            </select>
+                          ) : (
+                            <input type="number" value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ width: 65, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }} />
+                          )}
+                          <button onClick={() => removeFilter(idx)} style={{ background: "none", border: "none", color: C.faint, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>×</button>
+                        </div>
+                      );
+                    })}
+                    <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                      <select defaultValue="" onChange={(e) => { if (e.target.value) { addFilter(e.target.value); e.target.value = ""; } }} style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 8, color: C.muted, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                        <option value="" disabled>+ Add filter…</option>
+                        {FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                      </select>
+                      {filters.length > 0 && <button onClick={() => setFilters([])} style={{ background: "none", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: C.faint, fontSize: 12, padding: "5px 10px", cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}>Clear</button>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Columns section ── */}
+                <div style={{ padding: "12px 16px 6px" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 6 }}>Columns {hiddenCols.size > 0 && `· ${ALL_COL_KEYS.length - hiddenCols.size}/${ALL_COL_KEYS.length} shown`}</div>
+                  <div style={{ maxHeight: 220, overflowY: "auto" }} className="glass-scroll">
+                    {colOrder.map((key) => {
+                      const def = COL_DEFS.find((d) => d.key === key);
+                      if (!def) return null;
+                      const visible = !hiddenCols.has(key);
+                      return (
+                        <button key={key} onClick={() => toggleCol(key)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "7px 2px", fontSize: 13, color: visible ? C.text : C.faint, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{
                           width: 16, height: 16, borderRadius: 5, flexShrink: 0,
                           background: visible ? C.orange : "rgba(255,255,255,0.08)",
                           border: `1px solid ${visible ? C.orange : "rgba(255,255,255,0.15)"}`,
