@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { api } from "./api.js";
-import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2, LogOut } from "lucide-react";
+import { Pencil, ArrowUpRight, ArrowDownLeft, Plus, Minus, Calendar, Phone, Mail, X, Link2, Check, ExternalLink, Video, Trash2, LogOut, Filter } from "lucide-react";
 
 /* ---------- theme tokens (orange) ---------- */
 const C = {
@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.01</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.02</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1277,6 +1277,55 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
   const [view, setView] = useState("table");
   const [propOpen, setPropOpen] = useState(false);
   const propRef = useRef(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef(null);
+  const [filters, setFilters] = useState([]);
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    const close = (e) => { if (!filterRef.current?.contains(e.target)) setFilterOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [filterOpen]);
+
+  const FILTER_FIELDS = [
+    { key: "clientStatus", label: "Client Status", type: "enum", options: CLIENT_STATUS_ORDER },
+    { key: "status",       label: "Client Vibe",   type: "enum", options: VIBE_OPTIONS, labelMap: VIBE_LABELS },
+    { key: "adStatus",     label: "Ad Status",     type: "enum", options: AD_STATUS_ORDER },
+    { key: "onboarding",   label: "Onboarding",    type: "enum", options: ONBOARDING_ORDER },
+    { key: "priority",     label: "Priority",      type: "enum", options: CLIENT_PRIORITY_ORDER },
+    { key: "niche",        label: "Niche",         type: "enum", options: nicheOptions },
+    { key: "pifMrr",       label: "PIF / MRR",     type: "enum", options: PIF_MRR_ORDER },
+    { key: "mrr",          label: "MRR",            type: "number" },
+  ];
+
+  const addFilter = (field) => {
+    const def = FILTER_FIELDS.find((f) => f.key === field);
+    if (!def) return;
+    const defaultVal = def.type === "enum" ? def.options[0] : "";
+    setFilters((prev) => [...prev, { field, op: def.type === "number" ? "gte" : "eq", value: defaultVal }]);
+  };
+
+  const updateFilter = (idx, patch) => setFilters((prev) => prev.map((f, i) => i === idx ? { ...f, ...patch } : f));
+  const removeFilter = (idx) => setFilters((prev) => prev.filter((_, i) => i !== idx));
+
+  const getClientFieldVal = (c, field) => {
+    if (field === "status") return c.status;
+    if (field === "mrr") return c.mrr ?? 0;
+    return c[field] ?? "";
+  };
+
+  const applyFilters = (list) => {
+    if (!filters.length) return list;
+    return list.filter((c) => filters.every(({ field, op, value }) => {
+      const v = getClientFieldVal(c, field);
+      if (op === "eq")  return String(v).toLowerCase() === String(value).toLowerCase();
+      if (op === "neq") return String(v).toLowerCase() !== String(value).toLowerCase();
+      if (op === "gte") return Number(v) >= Number(value);
+      if (op === "lte") return Number(v) <= Number(value);
+      return true;
+    }));
+  };
 
   const [savedViews, setSavedViews] = useState(() => {
     try { return JSON.parse(localStorage.getItem("roster_views") || "[]"); } catch { return []; }
@@ -1489,8 +1538,117 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
             </div>
           )}
 
+          {/* filter */}
+          <div ref={filterRef} style={{ position: "relative", marginLeft: "auto" }}>
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: filterOpen || filters.length ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                border: `1px solid ${filterOpen || filters.length ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                color: filterOpen || filters.length ? C.orangeBright : C.muted,
+                borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
+                cursor: "pointer", fontFamily: FONT, transition: "background .15s",
+              }}
+            >
+              <Filter size={12} />
+              Filter
+              {filters.length > 0 && <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>{filters.length}</span>}
+            </button>
+            {filterOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                ...GLASS, borderRadius: 16, minWidth: 320, padding: "12px 0",
+                boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999,
+              }}>
+                <div style={{ padding: "4px 14px 10px", fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                  Filter Clients
+                </div>
+                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  {filters.map((f, idx) => {
+                    const def = FILTER_FIELDS.find((d) => d.key === f.field);
+                    return (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {/* field selector */}
+                        <select
+                          value={f.field}
+                          onChange={(e) => {
+                            const nd = FILTER_FIELDS.find((d) => d.key === e.target.value);
+                            updateFilter(idx, { field: e.target.value, op: nd?.type === "number" ? "gte" : "eq", value: nd?.type === "enum" ? nd.options[0] : "" });
+                          }}
+                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", flex: 1 }}
+                        >
+                          {FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                        </select>
+                        {/* operator */}
+                        <select
+                          value={f.op}
+                          onChange={(e) => updateFilter(idx, { op: e.target.value })}
+                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none" }}
+                        >
+                          {def?.type === "number" ? (
+                            <>
+                              <option value="gte">≥</option>
+                              <option value="lte">≤</option>
+                              <option value="eq">=</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="eq">is</option>
+                              <option value="neq">is not</option>
+                            </>
+                          )}
+                        </select>
+                        {/* value */}
+                        {def?.type === "enum" ? (
+                          <select
+                            value={f.value}
+                            onChange={(e) => updateFilter(idx, { value: e.target.value })}
+                            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", flex: 1 }}
+                          >
+                            {def.options.map((o) => <option key={o} value={o}>{def.labelMap?.[o] || o}</option>)}
+                          </select>
+                        ) : (
+                          <input
+                            type="number"
+                            value={f.value}
+                            onChange={(e) => updateFilter(idx, { value: e.target.value })}
+                            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", width: 70 }}
+                          />
+                        )}
+                        {/* remove */}
+                        <button onClick={() => removeFilter(idx)} style={{ background: "none", border: "none", color: C.faint, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px" }}>×</button>
+                      </div>
+                    );
+                  })}
+                  {/* add filter row */}
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <select
+                      defaultValue=""
+                      onChange={(e) => { if (e.target.value) { addFilter(e.target.value); e.target.value = ""; } }}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: C.muted, fontSize: 12, padding: "5px 8px", fontFamily: FONT, outline: "none", flex: 1 }}
+                    >
+                      <option value="" disabled>+ Add filter…</option>
+                      {FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                    </select>
+                    {filters.length > 0 && (
+                      <button onClick={() => setFilters([])} style={{ background: "none", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: C.faint, fontSize: 12, padding: "5px 10px", cursor: "pointer", fontFamily: FONT }}>
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {filters.length > 0 && (
+                    <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>
+                      Showing {applyFilters(clients).length} of {clients.length} clients
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* property visibility */}
-          <div ref={propRef} style={{ position: "relative", marginLeft: "auto" }}>
+          <div ref={propRef} style={{ position: "relative" }}>
             <button
               onClick={() => setPropOpen((o) => !o)}
               style={{
@@ -1560,7 +1718,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
             ))}
           </div>
         ) : (
-          <ClientTable clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} onOpenOnboarding={setOnboardingClient} />
+          <ClientTable clients={applyFilters(clients)} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} onOpenOnboarding={setOnboardingClient} />
         )}
       </div>
       {logClient && (
