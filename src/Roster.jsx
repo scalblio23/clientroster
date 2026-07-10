@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.98</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.99</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -499,15 +499,17 @@ const PIF_MRR_ORDER = ["MRR", "PIF"];
 const ONBOARDING_ORDER = ["Onboard Complete", "Pending"];
 const CLIENT_PRIORITY_ORDER = ["High", "Medium", "Low"];
 const CALL_TYPE_ORDER = ["Callout", "Booking", "Transfer", "Callback"];
+const CLIENT_STATUS_ORDER = ["Active", "Paused", "Cancelled"];
 
 const DEFAULT_COLORS = {
-  vibe:       { "good": "#ff8a3d", "neutral": "#9aa0a8", "at risk": "#f0674a" },
-  adStatus:   { "Live": "#34d399", "Not Live": "#9aa0a8", "Need to Get Live": "#fbbf24" },
-  pifMrr:     { "MRR": "#5b9bff", "PIF": "#a78bfa" },
-  onboarding: { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
-  priority:   { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
-  callType:   { "Callout": "#fbbf24", "Booking": "#34d399", "Transfer": "#5b9bff", "Callback": "#c084fc" },
-  niche:      { "Law": "#5b9bff", "Finance": "#34d399", "Trade": "#fbbf24", "Health": "#a78bfa", "Real Estate": "#fb923c", "E-Commerce": "#f472b6", "Other": "#9aa0a8" },
+  vibe:         { "good": "#ff8a3d", "neutral": "#9aa0a8", "at risk": "#f0674a" },
+  adStatus:     { "Live": "#34d399", "Not Live": "#9aa0a8", "Need to Get Live": "#fbbf24" },
+  pifMrr:       { "MRR": "#5b9bff", "PIF": "#a78bfa" },
+  onboarding:   { "Onboard Complete": "#5b9bff", "Pending": "#9aa0a8" },
+  priority:     { "High": "#f0674a", "Medium": "#ff8a3d", "Low": "#7f8aa3" },
+  callType:     { "Callout": "#fbbf24", "Booking": "#34d399", "Transfer": "#5b9bff", "Callback": "#c084fc" },
+  niche:        { "Law": "#5b9bff", "Finance": "#34d399", "Trade": "#fbbf24", "Health": "#a78bfa", "Real Estate": "#fb923c", "E-Commerce": "#f472b6", "Other": "#9aa0a8" },
+  clientStatus: { "Active": "#34d399", "Paused": "#fbbf24", "Cancelled": "#f0674a" },
 };
 
 const DEFAULT_NICHE_OPTIONS = ["Law", "Finance", "Trade", "Health", "Real Estate", "E-Commerce", "Other"];
@@ -693,6 +695,7 @@ const COL_DEFS = [
   { key: "vibe",       label: "Client Vibe", width: "120px" },
   { key: "adStatus",      label: "Ad Status",      width: "170px" },
   { key: "statusReport",  label: "Status Report",  width: "220px" },
+  { key: "clientStatus", label: "Client Status", width: "130px" },
   { key: "onboarding", label: "Onboarding",  width: "170px" },
   { key: "priority",   label: "Priority",    width: "100px" },
   { key: "pifMrr",     label: "PIF / MRR",   width: "110px" },
@@ -727,6 +730,7 @@ function clientSortVal(key, c) {
     case "daysOld":    return daysOld(c.start) ?? 0;
     case "vibe":       return ["good","neutral","at risk"].indexOf(c.status);
     case "adStatus":   return c.adStatus ?? "";
+    case "clientStatus": return CLIENT_STATUS_ORDER.indexOf(c.clientStatus ?? "Active");
     case "onboarding": return c.onboarding ?? "";
     case "priority":   return ["High","Medium","Low"].indexOf(c.priority);
     case "startDate":  return c.start ?? "";
@@ -849,6 +853,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
       case "vibe": return <SelectPicker field="vibe" value={c.status || "neutral"} options={VIBE_OPTIONS} colors={enumColors.vibe} onChangeValue={(v) => updateClient(c.name, { status: v })} onChangeColor={updateEnumColor} labelMap={VIBE_LABELS} />;
       case "adStatus": return <SelectPicker field="adStatus" value={c.adStatus || "Not Live"} options={AD_STATUS_ORDER} colors={enumColors.adStatus} onChangeValue={(v) => updateClient(c.name, { adStatus: v })} onChangeColor={updateEnumColor} />;
       case "statusReport": return <BlurInput value={c.statusReport || ""} onCommit={(v) => updateClient(c.name, { statusReport: v })} placeholder="Status…" style={{ ...cellInput({ fontSize: 13 }) }} />;
+      case "clientStatus": return <SelectPicker field="clientStatus" value={c.clientStatus || "Active"} options={CLIENT_STATUS_ORDER} colors={enumColors.clientStatus || DEFAULT_COLORS.clientStatus} onChangeValue={(v) => updateClient(c.name, { clientStatus: v })} onChangeColor={updateEnumColor} />;
       case "onboarding": return <OnboardingBar client={c} onClick={() => onOpenOnboarding?.(c)} />;
       case "priority": return <SelectPicker field="priority" value={c.priority || "Medium"} options={CLIENT_PRIORITY_ORDER} colors={enumColors.priority} onChangeValue={(v) => updateClient(c.name, { priority: v })} onChangeColor={updateEnumColor} />;
       case "pifMrr": return <SelectPicker field="pifMrr" value={c.pifMrr || "MRR"} options={PIF_MRR_ORDER} colors={enumColors.pifMrr || DEFAULT_COLORS.pifMrr} onChangeValue={(v) => updateClient(c.name, { pifMrr: v })} onChangeColor={updateEnumColor} />;
@@ -3200,7 +3205,7 @@ export default function Roster() {
 
   const setAndSaveTasks = (fn, changeEntry) => setTasks((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; scheduleTaskSave(changeEntry || null); return next; });
 
-  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", statusReport: "Status Report", pifMrr: "PIF / MRR", onboarding: "Onboarding", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
+  const CLIENT_FIELD_LABEL = { name: "Name", mrr: "MRR", adSpend: "Ad Spend", leads: "Leads", status: "Client Vibe", adStatus: "Ad Status", statusReport: "Status Report", pifMrr: "PIF / MRR", onboarding: "Onboarding", clientStatus: "Client Status", priority: "Priority", callType: "Call Type", start: "Start Date", phone: "Phone", email: "Email", script: "Script", notes: "Notes", niche: "Niche", strategyDoc: "Strategy Doc", adAccountLink: "Ad Account Link" };
 
   // No side effects inside setState — use clientsRef for old values
   const updateClient = (name, patch) => {
@@ -3215,7 +3220,7 @@ export default function Roster() {
     clientSaveTimer.current = setTimeout(flushClients, 0);
   };
   const addClient = (name, color) => {
-    const newClient = { name, color, mrr: 0, start: new Date().toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }), status: "neutral", adStatus: "Not Live", onboarding: "Pending", priority: "Medium", phone: "", email: "", notes: "", adSpend: 0, leads: 0 };
+    const newClient = { name, color, mrr: 0, start: new Date().toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }), status: "neutral", adStatus: "Not Live", onboarding: "Pending", clientStatus: "Active", priority: "Medium", phone: "", email: "", notes: "", adSpend: 0, leads: 0 };
     setClients((prev) => {
       const next = [...prev, newClient];
       clientsRef.current = next;
