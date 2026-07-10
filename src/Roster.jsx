@@ -293,7 +293,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v1.99</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.00</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -711,7 +711,7 @@ const COL_DEFS = [
   { key: "callType",   label: "Call Type",   width: "120px" },
   { key: "phone",      label: "Phone",       width: "150px" },
   { key: "email",      label: "Email",       width: "200px" },
-  { key: "tasks",      label: "Tasks",       width: "1fr"   },
+  { key: "tasks",      label: "Tasks",       width: "260px" },
 ];
 
 function SortIcon({ dir }) {
@@ -1574,6 +1574,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
             const logs = [...(existing?.logs || []), entry];
             updateClient(logClient.name, { logs });
           }}
+          onAddTask={(text, due) => addTask(logClient.name, text, currentUser, "To Do", "Medium", due)}
         />
       )}
       {addingClient && (
@@ -1602,8 +1603,11 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
 }
 
 /* ---------- client log modal ---------- */
-function ClientLogModal({ client, currentUser, onClose, onAddLog }) {
+function ClientLogModal({ client, currentUser, onClose, onAddLog, onAddTask }) {
   const [text, setText] = useState("");
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskText, setTaskText] = useState("");
+  const [taskDue, setTaskDue] = useState("");
   const bottomRef = useRef(null);
   const logs = client.logs || [];
 
@@ -1622,6 +1626,15 @@ function ClientLogModal({ client, currentUser, onClose, onAddLog }) {
     if (!trimmed) return;
     onAddLog(trimmed);
     setText("");
+  };
+
+  const submitTask = () => {
+    const trimmed = taskText.trim();
+    if (!trimmed) return;
+    onAddTask(trimmed, taskDue);
+    setTaskText("");
+    setTaskDue("");
+    setShowTaskForm(false);
   };
 
   const fmtDate = (ts) => {
@@ -1677,30 +1690,94 @@ function ClientLogModal({ client, currentUser, onClose, onAddLog }) {
         </div>
 
         {/* composer */}
-        <div style={{ padding: "14px 22px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10, alignItems: "flex-end" }}>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-            placeholder="Add a log entry… (Enter to post, Shift+Enter for newline)"
-            rows={2}
-            style={{
-              flex: 1, resize: "none", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 12, color: C.text, fontSize: 13.5, padding: "10px 14px", fontFamily: FONT,
-              outline: "none", lineHeight: 1.5,
-            }}
-          />
-          <button
-            onClick={submit}
-            disabled={!text.trim()}
-            style={{
-              background: text.trim() ? C.orange : "rgba(255,255,255,0.08)", border: "none", borderRadius: 12,
-              color: text.trim() ? "#000" : C.faint, fontWeight: 700, fontSize: 13.5, padding: "10px 18px",
-              cursor: text.trim() ? "pointer" : "default", fontFamily: FONT, transition: "background .15s, color .15s", flexShrink: 0,
-            }}
-          >
-            Post
-          </button>
+        <div style={{ padding: "14px 22px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+              placeholder="Add a log entry… (Enter to post, Shift+Enter for newline)"
+              rows={2}
+              style={{
+                flex: 1, resize: "none", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 12, color: C.text, fontSize: 13.5, padding: "10px 14px", fontFamily: FONT,
+                outline: "none", lineHeight: 1.5,
+              }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+              <button
+                onClick={submit}
+                disabled={!text.trim()}
+                style={{
+                  background: text.trim() ? C.orange : "rgba(255,255,255,0.08)", border: "none", borderRadius: 12,
+                  color: text.trim() ? "#000" : C.faint, fontWeight: 700, fontSize: 13.5, padding: "10px 18px",
+                  cursor: text.trim() ? "pointer" : "default", fontFamily: FONT, transition: "background .15s, color .15s",
+                }}
+              >
+                Post
+              </button>
+              <button
+                onClick={() => setShowTaskForm((v) => !v)}
+                style={{
+                  background: showTaskForm ? "rgba(91,155,255,0.2)" : "rgba(255,255,255,0.06)",
+                  border: `1px solid ${showTaskForm ? "#5b9bff55" : "rgba(255,255,255,0.12)"}`,
+                  borderRadius: 12, color: showTaskForm ? "#5b9bff" : C.muted, fontWeight: 600,
+                  fontSize: 12, padding: "7px 12px", cursor: "pointer", fontFamily: FONT, transition: "all .15s", whiteSpace: "nowrap",
+                }}
+              >
+                + Task
+              </button>
+            </div>
+          </div>
+
+          {/* inline task creator */}
+          {showTaskForm && (
+            <div style={{ background: "rgba(91,155,255,0.07)", border: "1px solid rgba(91,155,255,0.2)", borderRadius: 12, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#5b9bff", letterSpacing: 0.5, textTransform: "uppercase" }}>New Task for {client.name}</div>
+              <input
+                type="text"
+                value={taskText}
+                onChange={(e) => setTaskText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") submitTask(); }}
+                placeholder="Task description…"
+                autoFocus
+                style={{
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 8, color: C.text, fontSize: 13, padding: "8px 12px",
+                  fontFamily: FONT, outline: "none", width: "100%", boxSizing: "border-box",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="date"
+                  value={taskDue}
+                  onChange={(e) => setTaskDue(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 8, color: C.text, fontSize: 12, padding: "6px 10px",
+                    fontFamily: FONT, outline: "none", colorScheme: "dark", flex: 1,
+                  }}
+                />
+                <button
+                  onClick={submitTask}
+                  disabled={!taskText.trim()}
+                  style={{
+                    background: taskText.trim() ? "#5b9bff" : "rgba(255,255,255,0.08)", border: "none", borderRadius: 8,
+                    color: taskText.trim() ? "#000" : C.faint, fontWeight: 700, fontSize: 13, padding: "7px 16px",
+                    cursor: taskText.trim() ? "pointer" : "default", fontFamily: FONT, flexShrink: 0,
+                  }}
+                >
+                  Create Task
+                </button>
+                <button
+                  onClick={() => setShowTaskForm(false)}
+                  style={{ background: "none", border: "none", color: C.faint, fontSize: 12, cursor: "pointer", padding: "7px 8px" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
