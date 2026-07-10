@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.05</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.06</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1279,6 +1279,8 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
   const [propOpen, setPropOpen] = useState(false);
   const propRef = useRef(null);
   const [filters, setFilters] = useState([]);
+  const dragColIdx = useRef(null);
+  const [dragOverColIdx, setDragOverColIdx] = useState(null);
 
   const FILTER_FIELDS = [
     { key: "clientStatus", label: "Client Status", type: "enum", options: CLIENT_STATUS_ORDER },
@@ -1582,33 +1584,64 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
 
                 {/* ── Columns section ── */}
                 <div style={{ padding: "12px 16px 6px" }}>
-                  <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 6 }}>Columns {hiddenCols.size > 0 && `· ${ALL_COL_KEYS.length - hiddenCols.size}/${ALL_COL_KEYS.length} shown`}</div>
-                  <div style={{ maxHeight: 220, overflowY: "auto" }} className="glass-scroll">
-                    {colOrder.map((key) => {
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase" }}>Columns {hiddenCols.size > 0 && `· ${ALL_COL_KEYS.length - hiddenCols.size}/${ALL_COL_KEYS.length}`}</div>
+                    <div style={{ fontSize: 10, color: C.faint }}>drag to reorder</div>
+                  </div>
+                  <div style={{ maxHeight: 260, overflowY: "auto" }} className="glass-scroll">
+                    {colOrder.map((key, i) => {
                       const def = COL_DEFS.find((d) => d.key === key);
                       if (!def) return null;
                       const visible = !hiddenCols.has(key);
+                      const isDragOver = dragOverColIdx === i;
                       return (
-                        <button key={key} onClick={() => toggleCol(key)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "7px 2px", fontSize: 13, color: visible ? C.text : C.faint, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{
-                          width: 16, height: 16, borderRadius: 5, flexShrink: 0,
-                          background: visible ? C.orange : "rgba(255,255,255,0.08)",
-                          border: `1px solid ${visible ? C.orange : "rgba(255,255,255,0.15)"}`,
-                          display: "grid", placeItems: "center",
-                        }}>
-                          {visible && <Check size={10} color="#000" strokeWidth={3} />}
-                        </span>
-                        {def.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ padding: "8px 14px 4px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8 }}>
-                  <button onClick={() => setHiddenCols(new Set())} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.text, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Show all</button>
-                  <button onClick={() => setHiddenCols(new Set(ALL_COL_KEYS))} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Hide all</button>
+                        <div
+                          key={key}
+                          draggable
+                          onDragStart={() => { dragColIdx.current = i; }}
+                          onDragOver={(e) => { e.preventDefault(); setDragOverColIdx(i); }}
+                          onDragLeave={() => setDragOverColIdx(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const from = dragColIdx.current;
+                            if (from === null || from === i) { setDragOverColIdx(null); return; }
+                            const next = [...colOrder];
+                            next.splice(i, 0, next.splice(from, 1)[0]);
+                            setColOrder(next);
+                            dragColIdx.current = null;
+                            setDragOverColIdx(null);
+                          }}
+                          onDragEnd={() => { dragColIdx.current = null; setDragOverColIdx(null); }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 8, padding: "6px 2px",
+                            borderTop: isDragOver ? `2px solid ${C.orange}` : "2px solid transparent",
+                            userSelect: "none",
+                          }}
+                        >
+                          {/* drag handle */}
+                          <span style={{ color: C.faint, fontSize: 13, cursor: "grab", flexShrink: 0, lineHeight: 1 }}>⠿</span>
+                          {/* visibility toggle */}
+                          <button onClick={() => toggleCol(key)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flex: 1, textAlign: "left" }}>
+                            <span style={{
+                              width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                              background: visible ? C.orange : "rgba(255,255,255,0.08)",
+                              border: `1px solid ${visible ? C.orange : "rgba(255,255,255,0.18)"}`,
+                              display: "grid", placeItems: "center",
+                            }}>
+                              {visible && <Check size={9} color="#000" strokeWidth={3} />}
+                            </span>
+                            <span style={{ fontSize: 13, color: visible ? C.text : C.faint, fontFamily: FONT }}>{def.label}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ padding: "8px 0 4px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8, marginTop: 4 }}>
+                    <button onClick={() => setHiddenCols(new Set())} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.text, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Show all</button>
+                    <button onClick={() => setHiddenCols(new Set(ALL_COL_KEYS))} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Hide all</button>
+                  </div>
                 </div>
               </div>
-            </div>
             )}
           </div>
         </div>
