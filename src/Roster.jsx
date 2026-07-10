@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.04</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.05</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1608,6 +1608,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
                   <button onClick={() => setHiddenCols(new Set(ALL_COL_KEYS))} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 0", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Hide all</button>
                 </div>
               </div>
+            </div>
             )}
           </div>
         </div>
@@ -2302,9 +2303,43 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
   });
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
+  const [filters, setFilters] = useState([]);
+  const [cfgOpen, setCfgOpen] = useState(false);
+  const cfgRef = useRef(null);
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
   const logTask = tasks.find((t) => t.id === logTaskId) || null;
+
+  useEffect(() => {
+    if (!cfgOpen) return;
+    const close = (e) => { if (!cfgRef.current?.contains(e.target)) setCfgOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [cfgOpen]);
+
+  const clientNames = clients.map((c) => c.name);
+
+  const TASK_FILTER_FIELDS = [
+    { key: "status",   label: "Status",   type: "enum", options: TASK_STATUS },
+    { key: "priority", label: "Priority", type: "enum", options: PRI_ORDER },
+    { key: "person",   label: "Person",   type: "enum", options: TEAM },
+    { key: "client",   label: "Client",   type: "enum", options: clientNames },
+  ];
+
+  const addFilter = (fieldKey) => {
+    const def = TASK_FILTER_FIELDS.find((d) => d.key === fieldKey);
+    setFilters((prev) => [...prev, { field: fieldKey, op: "eq", value: def?.options?.[0] ?? "" }]);
+  };
+  const updateFilter = (idx, patch) => setFilters((prev) => prev.map((f, i) => i === idx ? { ...f, ...patch } : f));
+  const removeFilter = (idx) => setFilters((prev) => prev.filter((_, i) => i !== idx));
+
+  const applyTaskFilters = (list) => list.filter((t) => filters.every((f) => {
+    const def = TASK_FILTER_FIELDS.find((d) => d.key === f.field);
+    const raw = t[f.field] ?? "";
+    const val = String(raw);
+    if (def?.type === "enum") return f.op === "neq" ? val !== f.value : val === f.value;
+    return true;
+  }));
 
   // clean up ?task= from URL when modal closes
   const closeLogModal = () => {
@@ -2320,17 +2355,21 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
     else { setSortKey(key); setSortDir("asc"); }
   };
 
+  const filteredTasks = applyTaskFilters(tasks);
+
   const sortedTasks = sortKey
-    ? [...tasks].sort((a, b) => {
+    ? [...filteredTasks].sort((a, b) => {
         const av = taskSortVal(sortKey, a);
         const bv = taskSortVal(sortKey, b);
         const cmp = typeof av === "number" ? av - bv : String(av).localeCompare(String(bv));
         return sortDir === "asc" ? cmp : -cmp;
       })
-    : tasks;
+    : filteredTasks;
 
   const cols = TASK_COLS;
   const grid = TASK_GRID;
+
+  const TASK_SORT_COLS = TASK_COLS.filter((c) => !["_log", "deps", "loom", "_del"].includes(c.key));
 
   return (
     <>
@@ -2338,17 +2377,109 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
       <div style={{ textAlign: "center", marginTop: 40 }}>
         <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>OPEN TASKS · SCALBL</div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", marginTop: 14 }}>
-          <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{tasks.length}</span>
+          <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{filteredTasks.length}</span>
           <span style={{ fontSize: 34, fontWeight: 700, color: C.faint, marginLeft: 12 }}>tasks</span>
         </div>
-        <div style={{ marginTop: 12, fontSize: 13.5, color: C.muted }}>Across {new Set(tasks.map((t) => t.client)).size} clients</div>
+        <div style={{ marginTop: 12, fontSize: 13.5, color: C.muted }}>
+          {filters.length > 0
+            ? `${filteredTasks.length} of ${tasks.length} tasks · ${new Set(filteredTasks.map((t) => t.client)).size} clients`
+            : `Across ${new Set(tasks.map((t) => t.client)).size} clients`}
+        </div>
       </div>
 
       {/* table */}
       <div style={{ marginTop: 56 }}>
         <SectionHead title="All tasks" right={
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 13, color: C.muted }}>{tasks.length} open</span>
+            <span style={{ fontSize: 13, color: C.muted }}>{filteredTasks.length} shown</span>
+
+            {/* Configure view button */}
+            <div ref={cfgRef} style={{ position: "relative" }}>
+              <button
+                onClick={() => setCfgOpen((o) => !o)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  background: cfgOpen || filters.length || sortKey ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${cfgOpen || filters.length || sortKey ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                  color: cfgOpen || filters.length || sortKey ? C.orangeBright : C.muted,
+                  borderRadius: 999, padding: "5px 14px", fontSize: 12.5, fontWeight: 500,
+                  cursor: "pointer", fontFamily: FONT, transition: "background .15s",
+                }}
+              >
+                <Filter size={12} /> Configure view
+                {(filters.length > 0 || sortKey) && (
+                  <span style={{ background: C.orange, color: "#000", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>
+                    {(sortKey ? 1 : 0) + filters.length}
+                  </span>
+                )}
+              </button>
+              {cfgOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  ...GLASS, borderRadius: 16, width: 360, padding: 0,
+                  boxShadow: "0 16px 48px rgba(0,0,0,0.5)", zIndex: 9999, overflow: "hidden",
+                }}>
+                  {/* Sort */}
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 8 }}>Sort</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <select
+                        value={sortKey || ""}
+                        onChange={(e) => setSortKey(e.target.value || null)}
+                        style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "6px 8px", fontFamily: FONT, outline: "none" }}
+                      >
+                        <option value="">No sort</option>
+                        {TASK_SORT_COLS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                      </select>
+                      <select
+                        value={sortDir}
+                        onChange={(e) => setSortDir(e.target.value)}
+                        disabled={!sortKey}
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: sortKey ? C.text : C.faint, fontSize: 12, padding: "6px 8px", fontFamily: FONT, outline: "none" }}
+                      >
+                        <option value="asc">A → Z / Low → High</option>
+                        <option value="desc">Z → A / High → Low</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Filter */}
+                  <div style={{ padding: "12px 16px" }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 8 }}>
+                      Filter {filters.length > 0 && `· ${filteredTasks.length} of ${tasks.length} shown`}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {filters.map((f, idx) => {
+                        const def = TASK_FILTER_FIELDS.find((d) => d.key === f.field);
+                        return (
+                          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <select value={f.field} onChange={(e) => { const nd = TASK_FILTER_FIELDS.find((d) => d.key === e.target.value); updateFilter(idx, { field: e.target.value, op: "eq", value: nd?.options?.[0] ?? "" }); }} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                              {TASK_FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                            </select>
+                            <select value={f.op} onChange={(e) => updateFilter(idx, { op: e.target.value })} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                              <option value="eq">is</option>
+                              <option value="neq">is not</option>
+                            </select>
+                            <select value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                              {def?.options?.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                            <button onClick={() => removeFilter(idx)} style={{ background: "none", border: "none", color: C.faint, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>×</button>
+                          </div>
+                        );
+                      })}
+                      <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                        <select defaultValue="" onChange={(e) => { if (e.target.value) { addFilter(e.target.value); e.target.value = ""; } }} style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 8, color: C.muted, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                          <option value="" disabled>+ Add filter…</option>
+                          {TASK_FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                        </select>
+                        {filters.length > 0 && <button onClick={() => setFilters([])} style={{ background: "none", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: C.faint, fontSize: 12, padding: "5px 10px", cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}>Clear</button>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button onClick={() => setAddingTask(true)} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: `linear-gradient(150deg, ${C.orangeBright}, ${C.orange})`, color: "#0a0a0a",
