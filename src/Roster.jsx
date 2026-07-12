@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.07</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.08</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2628,7 +2628,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                     );
                     case "status": return <ChipPicker key="status" value={t.status || "To Do"} options={TASK_STATUS} colors={TASK_STATUS_COLORS} onChange={(v) => updateTask(t.id, { status: v })} />;
                     case "person": return <ChipPicker key="person" value={t.person || ""} options={TEAM} colors={TEAM_COLORS} placeholder="—" onChange={(v) => updateTask(t.id, { person: v })} />;
-                    case "priority": return <div key="priority"><PriorityChip value={t.priority} onChange={(p) => updateTask(t.id, { priority: p })} /></div>;
+                    case "priority": return <ChipPicker key="priority" value={t.priority || "Medium"} options={PRI_ORDER} colors={{ High: PRIORITY.High.color, Medium: PRIORITY.Medium.color, Low: PRIORITY.Low.color }} onChange={(p) => updateTask(t.id, { priority: p })} />;
                     case "due": return <DueCell key="due" value={t.due} onChange={(v) => updateTask(t.id, { due: v })} />;
                     case "deps": return <div key="deps"><DepsCell deps={t.deps} onOpen={() => setDepsFor(t.id)} /></div>;
                     case "loom": return <LoomCell key="loom" value={t.loom} onChange={(v) => updateTask(t.id, { loom: v })} />;
