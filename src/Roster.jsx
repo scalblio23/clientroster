@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.15</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.16</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -570,12 +570,12 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const s = isEmpty ? { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" } : chipStyle(color);
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
+    <div ref={ref} style={{ position: "relative", display: "inline-flex", maxWidth: "100%" }}>
       <button onClick={() => setOpen((o) => !o)} style={{
         display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
         background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
         borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
-        whiteSpace: "nowrap", fontFamily: FONT,
+        whiteSpace: "nowrap", fontFamily: FONT, maxWidth: "100%", overflow: "hidden",
       }}>
         {!isEmpty && <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />}
         {isEmpty ? "Select…" : (labelMap ? labelMap[value] || value : value)}
@@ -1002,7 +1002,7 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
                   borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
                 }}>
                   {cols.map((col) => (
-                    <div key={col.key} style={{ overflow: "visible", minWidth: 0 }}>{renderCell(col.key, c, cTasks)}</div>
+                    <div key={col.key} style={{ overflow: "visible", minWidth: 0, display: "flex", alignItems: "center" }}>{renderCell(col.key, c, cTasks)}</div>
                   ))}
                 </div>
               );
