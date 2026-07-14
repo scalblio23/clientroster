@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.08</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.09</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2361,20 +2361,31 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
     { key: "priority", label: "Priority", type: "enum", options: PRI_ORDER },
     { key: "person",   label: "Person",   type: "enum", options: TEAM },
     { key: "client",   label: "Client",   type: "enum", options: clientNames },
+    { key: "due",      label: "Due date", type: "date" },
   ];
 
   const addFilter = (fieldKey) => {
     const def = TASK_FILTER_FIELDS.find((d) => d.key === fieldKey);
-    setFilters((prev) => [...prev, { field: fieldKey, op: "eq", value: def?.options?.[0] ?? "" }]);
+    const defaultOp = def?.type === "date" ? "lte" : "eq";
+    const defaultVal = def?.type === "date" ? new Date().toISOString().slice(0, 10) : (def?.options?.[0] ?? "");
+    setFilters((prev) => [...prev, { field: fieldKey, op: defaultOp, value: defaultVal }]);
   };
   const updateFilter = (idx, patch) => setFilters((prev) => prev.map((f, i) => i === idx ? { ...f, ...patch } : f));
   const removeFilter = (idx) => setFilters((prev) => prev.filter((_, i) => i !== idx));
 
   const applyTaskFilters = (list) => list.filter((t) => filters.every((f) => {
     const def = TASK_FILTER_FIELDS.find((d) => d.key === f.field);
-    const raw = t[f.field] ?? "";
-    const val = String(raw);
-    if (def?.type === "enum") return f.op === "neq" ? val !== f.value : val === f.value;
+    if (def?.type === "enum") {
+      const val = String(t[f.field] ?? "");
+      return f.op === "neq" ? val !== f.value : val === f.value;
+    }
+    if (def?.type === "date") {
+      if (!t.due) return f.op === "none";
+      const taskDate = t.due.slice(0, 10);
+      if (f.op === "lte") return taskDate <= f.value;
+      if (f.op === "gte") return taskDate >= f.value;
+      if (f.op === "eq")  return taskDate === f.value;
+    }
     return true;
   }));
 
@@ -2491,18 +2502,33 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {filters.map((f, idx) => {
                         const def = TASK_FILTER_FIELDS.find((d) => d.key === f.field);
+                        const sel = { background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" };
                         return (
                           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <select value={f.field} onChange={(e) => { const nd = TASK_FILTER_FIELDS.find((d) => d.key === e.target.value); updateFilter(idx, { field: e.target.value, op: "eq", value: nd?.options?.[0] ?? "" }); }} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
+                            <select value={f.field} onChange={(e) => { const nd = TASK_FILTER_FIELDS.find((d) => d.key === e.target.value); const op = nd?.type === "date" ? "lte" : "eq"; const val = nd?.type === "date" ? new Date().toISOString().slice(0,10) : (nd?.options?.[0] ?? ""); updateFilter(idx, { field: e.target.value, op, value: val }); }} style={{ flex: 1, ...sel }}>
                               {TASK_FILTER_FIELDS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
                             </select>
-                            <select value={f.op} onChange={(e) => updateFilter(idx, { op: e.target.value })} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
-                              <option value="eq">is</option>
-                              <option value="neq">is not</option>
+                            <select value={f.op} onChange={(e) => updateFilter(idx, { op: e.target.value })} style={sel}>
+                              {def?.type === "date" ? (
+                                <>
+                                  <option value="lte">on or before</option>
+                                  <option value="gte">on or after</option>
+                                  <option value="eq">on</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="eq">is</option>
+                                  <option value="neq">is not</option>
+                                </>
+                              )}
                             </select>
-                            <select value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12, padding: "5px 7px", fontFamily: FONT, outline: "none" }}>
-                              {def?.options?.map((o) => <option key={o} value={o}>{o}</option>)}
-                            </select>
+                            {def?.type === "date" ? (
+                              <input type="date" value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, ...sel, colorScheme: "dark" }} />
+                            ) : (
+                              <select value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, ...sel }}>
+                                {def?.options?.map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            )}
                             <button onClick={() => removeFilter(idx)} style={{ background: "none", border: "none", color: C.faint, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>×</button>
                           </div>
                         );
