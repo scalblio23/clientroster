@@ -1,7 +1,9 @@
 const BASE = "/api";
 
+// Token is written to both sessionStorage and localStorage so share links
+// (which open in a new tab with a fresh sessionStorage) still work.
 function token() {
-  return sessionStorage.getItem("roster_token") || "";
+  return sessionStorage.getItem("roster_token") || localStorage.getItem("roster_token") || "";
 }
 
 function headers() {
@@ -16,6 +18,7 @@ async function req(method, path, body) {
   });
   if (res.status === 401) {
     sessionStorage.removeItem("roster_token");
+    localStorage.removeItem("roster_token");
     window.location.reload();
     return;
   }
@@ -45,9 +48,9 @@ export const api = {
   getDebug:       ()     => req("GET",  "/debug"),
   changePassword: (data) => req("POST", "/changepassword", data),
 
-  saveToken: (token) => sessionStorage.setItem("roster_token", token),
-  clearToken: ()     => { sessionStorage.removeItem("roster_token"); sessionStorage.removeItem("roster_user"); },
-  hasToken: ()       => !!sessionStorage.getItem("roster_token"),
-  saveUser: (u)      => sessionStorage.setItem("roster_user", JSON.stringify(u)),
-  loadUser: ()       => { try { return JSON.parse(sessionStorage.getItem("roster_user") || "null"); } catch { return null; } },
+  saveToken: (t) => { sessionStorage.setItem("roster_token", t); localStorage.setItem("roster_token", t); },
+  clearToken: ()  => { sessionStorage.removeItem("roster_token"); sessionStorage.removeItem("roster_user"); localStorage.removeItem("roster_token"); localStorage.removeItem("roster_user"); },
+  hasToken: ()    => !!(sessionStorage.getItem("roster_token") || localStorage.getItem("roster_token")),
+  saveUser: (u)   => { sessionStorage.setItem("roster_user", JSON.stringify(u)); localStorage.setItem("roster_user", JSON.stringify(u)); },
+  loadUser: ()    => { try { return JSON.parse(sessionStorage.getItem("roster_user") || localStorage.getItem("roster_user") || "null"); } catch { return null; } },
 };
