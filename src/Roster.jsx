@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.09</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.10</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2096,7 +2096,7 @@ const TASK_COLS = [
   { key: "due",      label: "Due date",     width: "1.2fr" },
   { key: "deps",     label: "Dependencies", width: "1.3fr" },
   { key: "loom",     label: "Loom",         width: "1.3fr" },
-  { key: "_del",     label: "",             width: "0.4fr", fixed: true },
+  { key: "_del",     label: "",             width: "0.7fr", fixed: true },
 ];
 const TASK_COL_KEYS_REORDERABLE = TASK_COLS.filter((c) => !c.fixed).map((c) => c.key);
 const TASK_PRIORITY_COLORS = { High: "#f0674a", Medium: "#fbbf24", Low: "#9aa0a8" };
@@ -2343,6 +2343,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
   const [taskHiddenCols, setTaskHiddenCols] = useState(new Set());
   const dragTaskColIdx = useRef(null);
   const [dragOverTaskColIdx, setDragOverTaskColIdx] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
   const logTask = tasks.find((t) => t.id === logTaskId) || null;
@@ -2403,7 +2404,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const filteredTasks = applyTaskFilters(tasks);
+  const filteredTasks = applyTaskFilters(tasks.filter((t) => showArchived ? t.archived : !t.archived));
 
   const sortedTasks = sortKey
     ? [...filteredTasks].sort((a, b) => {
@@ -2426,7 +2427,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
     <>
       {/* hero */}
       <div style={{ textAlign: "center", marginTop: 40 }}>
-        <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>OPEN TASKS · SCALBL</div>
+        <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>{showArchived ? "ARCHIVED TASKS" : "OPEN TASKS"} · SCALBL</div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", marginTop: 14 }}>
           <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{filteredTasks.length}</span>
           <span style={{ fontSize: 34, fontWeight: 700, color: C.faint, marginLeft: 12 }}>tasks</span>
@@ -2443,6 +2444,32 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
         <SectionHead title="All tasks" right={
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 13, color: C.muted }}>{filteredTasks.length} shown</span>
+
+            {/* Archived toggle */}
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                background: showArchived ? C.orangeSoft : "rgba(255,255,255,0.05)",
+                border: `1px solid ${showArchived ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+                color: showArchived ? C.orangeBright : C.muted,
+                borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500,
+                cursor: "pointer", fontFamily: FONT, transition: "background .15s",
+              }}
+            >
+              <span style={{
+                width: 28, height: 16, borderRadius: 99, flexShrink: 0, position: "relative",
+                background: showArchived ? C.orange : "rgba(255,255,255,0.15)",
+                transition: "background .2s",
+              }}>
+                <span style={{
+                  position: "absolute", top: 2, left: showArchived ? 14 : 2,
+                  width: 12, height: 12, borderRadius: 99, background: "#fff",
+                  transition: "left .2s",
+                }} />
+              </span>
+              Archived
+            </button>
 
             {/* Configure view button */}
             <div ref={cfgRef} style={{ position: "relative" }}>
@@ -2659,13 +2686,24 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                     case "deps": return <div key="deps"><DepsCell deps={t.deps} onOpen={() => setDepsFor(t.id)} /></div>;
                     case "loom": return <LoomCell key="loom" value={t.loom} onChange={(v) => updateTask(t.id, { loom: v })} />;
                     case "_del": return (
-                      <button key="_del" onClick={() => removeTask(t.id)} aria-label="Delete task" style={{ border: "none", background: "transparent", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center", justifySelf: "end" }}><Trash2 size={15} /></button>
+                      <div key="_del" style={{ display: "flex", alignItems: "center", gap: 6, justifySelf: "end" }}>
+                        <button
+                          onClick={() => updateTask(t.id, { archived: !t.archived })}
+                          title={t.archived ? "Unarchive" : "Archive"}
+                          style={{ border: "none", background: "transparent", cursor: "pointer", color: t.archived ? C.orange : C.faint, display: "grid", placeItems: "center" }}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
+                          </svg>
+                        </button>
+                        <button onClick={() => removeTask(t.id)} aria-label="Delete task" style={{ border: "none", background: "transparent", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center" }}><Trash2 size={15} /></button>
+                      </div>
                     );
                     default: return null;
                   }
                 };
                 return (
-                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 10, padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)" }}>
+                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: grid, alignItems: "center", gap: 10, padding: "12px 22px", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)", opacity: t.archived ? 0.45 : 1 }}>
                     {cols.map((col) => renderCell(col.key))}
                   </div>
                 );
