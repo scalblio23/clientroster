@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.13</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.14</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -341,7 +341,7 @@ function Header({ saveStatus, user, onLogout }) {
 }
 
 function Tabs({ tab, setTab }) {
-  const items = ["Clients", "Tasks", "Client Stats", "Call Schedule", "Settings"];
+  const items = ["Clients", "Tasks", "Client Stats", "Call Schedule", "Chat", "Settings"];
   return (
     <div style={{ display: "flex", justifyContent: "center", marginTop: 34 }}>
       <div style={{
@@ -3432,6 +3432,221 @@ function timeAgo(ts) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+/* ─── Chat ─────────────────────────────────────────────────────────── */
+
+function ChatPage({ currentUser }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+  const lastTsRef = useRef(0);
+  const inputRef = useRef(null);
+
+  // Avatar colour per username (deterministic)
+  const avatarColor = (name) => {
+    const palette = ["#f97316","#3b82f6","#a855f7","#10b981","#ec4899","#eab308","#06b6d4","#84cc16"];
+    let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  };
+
+  const initials = (name) => name.slice(0, 2).toUpperCase();
+
+  const fetchMessages = useCallback(async (since = 0) => {
+    try {
+      const msgs = await api.getChatMessages(since);
+      if (!msgs?.length) return;
+      // msgs come newest-first from server; reverse to oldest-first for display
+      const ordered = [...msgs].reverse();
+      if (since === 0) {
+        setMessages(ordered);
+      } else {
+        setMessages((prev) => {
+          const ids = new Set(prev.map((m) => m.id));
+          const fresh = ordered.filter((m) => !ids.has(m.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
+      }
+      if (ordered.length) lastTsRef.current = Math.max(...ordered.map((m) => m.ts));
+    } catch {}
+  }, []);
+
+  // Initial load
+  useEffect(() => { fetchMessages(0); }, [fetchMessages]);
+
+  // Poll every 1.5 s for new messages
+  useEffect(() => {
+    const id = setInterval(() => fetchMessages(lastTsRef.current), 1500);
+    return () => clearInterval(id);
+  }, [fetchMessages]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+    // Optimistic
+    const optimistic = { id: `opt-${Date.now()}`, username: currentUser, text: trimmed, ts: Date.now(), optimistic: true };
+    setMessages((prev) => [...prev, optimistic]);
+    setText("");
+    setSending(true);
+    try {
+      const saved = await api.sendChatMessage({ text: trimmed });
+      setMessages((prev) => prev.map((m) => m.id === optimistic.id ? { ...saved } : m));
+      lastTsRef.current = Math.max(lastTsRef.current, saved.ts);
+    } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setText(trimmed); // restore on failure
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const onKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+
+  // Group consecutive messages from same sender
+  const grouped = messages.map((m, i) => ({
+    ...m,
+    isFirst: i === 0 || messages[i - 1].username !== m.username,
+    isLast:  i === messages.length - 1 || messages[i + 1].username !== m.username,
+  }));
+
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const fmtDay = (ts) => {
+    const d = new Date(ts); const today = new Date();
+    if (d.toDateString() === today.toDateString()) return "Today";
+    const y = new Date(today); y.setDate(today.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return "Yesterday";
+    return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  };
+
+  // Day separators
+  const withDays = [];
+  let lastDay = null;
+  for (const m of grouped) {
+    const day = new Date(m.ts).toDateString();
+    if (day !== lastDay) { withDays.push({ type: "day", label: fmtDay(m.ts), key: `day-${m.ts}` }); lastDay = day; }
+    withDays.push({ type: "msg", ...m });
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)", minHeight: 400, maxWidth: 720, margin: "32px auto 0" }}>
+      <SectionHead title="Team Chat" />
+
+      {/* message list */}
+      <div
+        className="glass-scroll"
+        style={{ flex: 1, overflowY: "auto", padding: "16px 0", display: "flex", flexDirection: "column", gap: 1 }}
+      >
+        {withDays.length === 0 && (
+          <div style={{ margin: "auto", textAlign: "center", color: C.faint, fontSize: 13 }}>
+            No messages yet. Say hello 👋
+          </div>
+        )}
+        {withDays.map((item) => {
+          if (item.type === "day") return (
+            <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 20px" }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+              <span style={{ fontSize: 11, color: C.faint, whiteSpace: "nowrap" }}>{item.label}</span>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+            </div>
+          );
+
+          const mine = item.username === currentUser;
+          const color = avatarColor(item.username);
+
+          return (
+            <div key={item.id} style={{ display: "flex", flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-end", gap: 8, padding: "1px 16px", opacity: item.optimistic ? 0.65 : 1 }}>
+              {/* avatar — only on last message in a group and only for others */}
+              {!mine && (
+                <div style={{ width: 30, flexShrink: 0, display: "flex", alignItems: "flex-end" }}>
+                  {item.isLast && (
+                    <div style={{ width: 30, height: 30, borderRadius: 99, background: color, display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                      {initials(item.username)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", maxWidth: "70%", gap: 2 }}>
+                {/* sender name — first in group, others only */}
+                {!mine && item.isFirst && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color, marginLeft: 4, marginBottom: 1 }}>{item.username}</span>
+                )}
+
+                {/* bubble */}
+                <div style={{
+                  background: mine ? "#1d6fe5" : "rgba(255,255,255,0.09)",
+                  color: C.text,
+                  borderRadius: mine
+                    ? `16px 16px ${item.isLast ? 4 : 16}px 16px`
+                    : `16px 16px 16px ${item.isLast ? 4 : 16}px`,
+                  padding: "8px 13px",
+                  fontSize: 14,
+                  lineHeight: 1.45,
+                  wordBreak: "break-word",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  border: mine ? "none" : "1px solid rgba(255,255,255,0.08)",
+                }}>
+                  {item.text}
+                </div>
+
+                {/* timestamp — only on last in group */}
+                {item.isLast && (
+                  <span style={{ fontSize: 10.5, color: C.faint, marginLeft: 4, marginRight: 4 }}>
+                    {fmtTime(item.ts)}
+                    {mine && item.optimistic && " · sending…"}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* input bar */}
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.15)", borderRadius: "0 0 20px 20px" }}>
+        <textarea
+          ref={inputRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={onKey}
+          placeholder="Message…"
+          rows={1}
+          style={{
+            flex: 1, resize: "none", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 20, color: C.text, fontSize: 14, padding: "10px 14px", fontFamily: FONT, outline: "none",
+            lineHeight: 1.45, maxHeight: 120, overflowY: "auto",
+            field_sizing: "content",
+          }}
+          onInput={(e) => {
+            e.target.style.height = "auto";
+            e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+          }}
+        />
+        <button
+          onClick={send}
+          disabled={!text.trim() || sending}
+          style={{
+            width: 40, height: 40, borderRadius: 99, border: "none", cursor: text.trim() ? "pointer" : "default",
+            background: text.trim() ? "#1d6fe5" : "rgba(255,255,255,0.08)",
+            display: "grid", placeItems: "center", flexShrink: 0, transition: "background .15s",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={text.trim() ? "#fff" : C.faint} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPage({ user }) {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -3812,6 +4027,7 @@ export default function Roster() {
         {tab === "Tasks" && <TasksPage clients={clients} tasks={tasks} addTask={addTask} removeTask={removeTask} updateTask={updateTask} currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Client Stats" && <ClientStatsPage clients={clients} updateClient={updateClient} enumColors={enumColors} />}
         {tab === "Call Schedule" && <CallSchedulePage clients={clients} schedule={schedule} setSchedule={saveSchedule} />}
+        {tab === "Chat" && <ChatPage currentUser={user?.username || user?.name || "unknown"} />}
         {tab === "Settings" && <SettingsPage user={user} />}
       </div>
     </div>

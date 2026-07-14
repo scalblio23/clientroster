@@ -48,6 +48,9 @@ export const api = {
   getDebug:       ()     => req("GET",  "/debug"),
   changePassword: (data) => req("POST", "/changepassword", data),
 
+  getChatMessages: (since) => req("GET", `/chat${since ? `?since=${since}` : ""}`),
+  sendChatMessage: (body)  => req("POST", "/chat", body),
+
   saveToken: (t) => { sessionStorage.setItem("roster_token", t); localStorage.setItem("roster_token", t); },
   clearToken: ()  => { sessionStorage.removeItem("roster_token"); sessionStorage.removeItem("roster_user"); localStorage.removeItem("roster_token"); localStorage.removeItem("roster_user"); },
   hasToken: ()    => !!(sessionStorage.getItem("roster_token") || localStorage.getItem("roster_token")),
