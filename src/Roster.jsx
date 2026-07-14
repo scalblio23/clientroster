@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.11</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.12</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2431,6 +2431,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
       if (f.op === "lte") return taskDate <= f.value;
       if (f.op === "gte") return taskDate >= f.value;
       if (f.op === "eq")  return taskDate === f.value;
+      if (f.op === "today_gte") return taskDate >= new Date().toISOString().slice(0, 10);
     }
     return true;
   }));
@@ -2586,6 +2587,7 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                                   <option value="lte">on or before</option>
                                   <option value="gte">on or after</option>
                                   <option value="eq">on</option>
+                                  <option value="today_gte">is today or after</option>
                                 </>
                               ) : (
                                 <>
@@ -2594,13 +2596,13 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
                                 </>
                               )}
                             </select>
-                            {def?.type === "date" ? (
+                            {def?.type === "date" && f.op !== "today_gte" ? (
                               <input type="date" value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, ...sel, colorScheme: "dark" }} />
-                            ) : (
+                            ) : def?.type !== "date" ? (
                               <select value={f.value} onChange={(e) => updateFilter(idx, { value: e.target.value })} style={{ flex: 1, ...sel }}>
                                 {def?.options?.map((o) => <option key={o} value={o}>{o}</option>)}
                               </select>
-                            )}
+                            ) : null}
                             <button onClick={() => removeFilter(idx)} style={{ background: "none", border: "none", color: C.faint, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>×</button>
                           </div>
                         );
