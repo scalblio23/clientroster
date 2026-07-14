@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.10</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.11</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2344,6 +2344,51 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
   const dragTaskColIdx = useRef(null);
   const [dragOverTaskColIdx, setDragOverTaskColIdx] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+
+  // ── saved task views ──
+  const [taskSavedViews, setTaskSavedViews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("task_views") || "[]"); } catch { return []; }
+  });
+  const [taskSavingView, setTaskSavingView] = useState(false);
+  const [taskViewDraft, setTaskViewDraft] = useState("");
+
+  const taskActiveViewName = taskSavedViews.find((v) => {
+    if ((v.sortKey ?? null) !== sortKey || (v.sortDir ?? "asc") !== sortDir) return false;
+    const vFilters = Array.isArray(v.filters) ? v.filters : [];
+    if (vFilters.length !== filters.length) return false;
+    for (let i = 0; i < vFilters.length; i++) {
+      if (vFilters[i].field !== filters[i].field || vFilters[i].op !== filters[i].op || vFilters[i].value !== filters[i].value) return false;
+    }
+    const vHidden = new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []);
+    if (vHidden.size !== taskHiddenCols.size) return false;
+    for (const k of vHidden) { if (!taskHiddenCols.has(k)) return false; }
+    return true;
+  })?.name || null;
+
+  const saveTaskView = () => {
+    const name = taskViewDraft.trim() || "My View";
+    const next = [...taskSavedViews.filter((v) => v.name !== name), {
+      name, sortKey, sortDir, filters,
+      colOrder: taskColOrder, hiddenCols: [...taskHiddenCols],
+    }];
+    setTaskSavedViews(next);
+    localStorage.setItem("task_views", JSON.stringify(next));
+    setTaskSavingView(false); setTaskViewDraft("");
+  };
+
+  const deleteTaskView = (name) => {
+    const next = taskSavedViews.filter((v) => v.name !== name);
+    setTaskSavedViews(next);
+    localStorage.setItem("task_views", JSON.stringify(next));
+  };
+
+  const applyTaskView = (v) => {
+    setSortKey(v.sortKey ?? null);
+    setSortDir(v.sortDir ?? "asc");
+    setFilters(Array.isArray(v.filters) ? v.filters : []);
+    if (Array.isArray(v.colOrder)) setTaskColOrder(v.colOrder);
+    setTaskHiddenCols(new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []));
+  };
   const byName = Object.fromEntries(clients.map((c) => [c.name, c]));
   const activeTask = tasks.find((t) => t.id === depsFor) || null;
   const logTask = tasks.find((t) => t.id === logTaskId) || null;
@@ -2631,6 +2676,48 @@ function TasksPage({ clients, tasks, addTask, removeTask, updateTask, currentUse
             }}><Plus size={14} /> New task</button>
           </div>
         } />
+        {/* task views bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <button
+            onClick={() => { setSortKey(null); setSortDir("asc"); setFilters([]); setTaskHiddenCols(new Set()); }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: !taskActiveViewName && !sortKey && !filters.length ? C.orangeSoft : "rgba(255,255,255,0.05)",
+              border: `1px solid ${!taskActiveViewName && !sortKey && !filters.length ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`,
+              color: !taskActiveViewName && !sortKey && !filters.length ? C.orangeBright : C.muted,
+              borderRadius: 999, padding: "5px 12px", fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT,
+            }}
+          >Default</button>
+
+          {taskSavedViews.map((v) => {
+            const active = v.name === taskActiveViewName;
+            const bg = active ? C.orangeSoft : "rgba(255,255,255,0.05)";
+            const bd = active ? C.orangeSoftBorder : "rgba(255,255,255,0.10)";
+            const fg = active ? C.orangeBright : C.muted;
+            return (
+              <div key={v.name} style={{ display: "inline-flex", alignItems: "center" }}>
+                <button onClick={() => applyTaskView(v)} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: bg, border: `1px solid ${bd}`, color: fg, borderRadius: "999px 0 0 999px", padding: "5px 12px", fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>
+                  {v.name}
+                  {Array.isArray(v.filters) && v.filters.length > 0 && <span style={{ background: active ? C.orange : "rgba(255,255,255,0.15)", color: active ? "#000" : C.muted, borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "0 5px", lineHeight: "16px" }}>{v.filters.length}</span>}
+                </button>
+                <button onClick={() => deleteTaskView(v.name)} aria-label="Delete view" style={{ display: "grid", placeItems: "center", background: bg, border: `1px solid ${bd}`, borderLeft: "none", color: fg, borderRadius: "0 999px 999px 0", padding: "5px 8px", cursor: "pointer" }}><X size={11} /></button>
+              </div>
+            );
+          })}
+
+          {!taskSavingView ? (
+            <button onClick={() => setTaskSavingView(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "1px dashed rgba(255,255,255,0.18)", color: C.muted, borderRadius: 999, padding: "5px 12px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>
+              <Plus size={11} /> Save view
+            </button>
+          ) : (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input autoFocus value={taskViewDraft} onChange={(e) => setTaskViewDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveTaskView(); if (e.key === "Escape") { setTaskSavingView(false); setTaskViewDraft(""); } }} placeholder="View name…" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)", color: C.text, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, fontFamily: FONT, outline: "none", width: 160 }} />
+              <button onClick={saveTaskView} style={{ background: C.orangeSoft, border: `1px solid ${C.orangeSoftBorder}`, color: C.orangeBright, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Save</button>
+              <button onClick={() => { setTaskSavingView(false); setTaskViewDraft(""); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.10)", color: C.muted, borderRadius: 8, padding: "5px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+            </div>
+          )}
+        </div>
+
         <div style={{ ...GLASS, borderRadius: 20 }}>
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 1260 }}>
