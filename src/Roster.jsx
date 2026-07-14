@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.14</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.15</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -3434,7 +3434,17 @@ function timeAgo(ts) {
 
 /* ─── Chat ─────────────────────────────────────────────────────────── */
 
-function ChatPage({ currentUser }) {
+const CHAT_BLUE = "#1d6fe5";
+
+function avatarColor(name) {
+  const palette = ["#f97316","#3b82f6","#a855f7","#10b981","#ec4899","#eab308","#06b6d4","#84cc16"];
+  let h = 0; for (let i = 0; i < (name||"").length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+function initials(name) { return (name||"??").slice(0,2).toUpperCase(); }
+
+/* ── MessagePane: messages + input for one conversation ── */
+function MessagePane({ conv, currentUser }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -3442,63 +3452,55 @@ function ChatPage({ currentUser }) {
   const lastTsRef = useRef(0);
   const inputRef = useRef(null);
 
-  // Avatar colour per username (deterministic)
-  const avatarColor = (name) => {
-    const palette = ["#f97316","#3b82f6","#a855f7","#10b981","#ec4899","#eab308","#06b6d4","#84cc16"];
-    let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-    return palette[h % palette.length];
-  };
-
-  const initials = (name) => name.slice(0, 2).toUpperCase();
-
-  const fetchMessages = useCallback(async (since = 0) => {
+  const fetchMessages = useCallback(async (since) => {
+    if (!conv) return;
     try {
-      const msgs = await api.getChatMessages(since);
+      const msgs = await api.getChatMessages(conv.id, since);
       if (!msgs?.length) return;
-      // msgs come newest-first from server; reverse to oldest-first for display
-      const ordered = [...msgs].reverse();
+      const ordered = [...msgs].reverse(); // server: newest-first → display: oldest-first
       if (since === 0) {
         setMessages(ordered);
+        if (ordered.length) lastTsRef.current = Math.max(...ordered.map((m) => m.ts));
       } else {
         setMessages((prev) => {
           const ids = new Set(prev.map((m) => m.id));
           const fresh = ordered.filter((m) => !ids.has(m.id));
-          return fresh.length ? [...prev, ...fresh] : prev;
+          if (!fresh.length) return prev;
+          lastTsRef.current = Math.max(lastTsRef.current, ...fresh.map((m) => m.ts));
+          return [...prev, ...fresh];
         });
       }
-      if (ordered.length) lastTsRef.current = Math.max(...ordered.map((m) => m.ts));
     } catch {}
-  }, []);
+  }, [conv?.id]);
 
-  // Initial load
-  useEffect(() => { fetchMessages(0); }, [fetchMessages]);
+  // Reset + load when conversation changes
+  useEffect(() => {
+    setMessages([]); lastTsRef.current = 0; setText("");
+    fetchMessages(0);
+    inputRef.current?.focus();
+  }, [conv?.id]);
 
-  // Poll every 1.5 s for new messages
   useEffect(() => {
     const id = setInterval(() => fetchMessages(lastTsRef.current), 1500);
     return () => clearInterval(id);
   }, [fetchMessages]);
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const send = async () => {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
-    // Optimistic
+    if (!trimmed || sending || !conv) return;
     const optimistic = { id: `opt-${Date.now()}`, username: currentUser, text: trimmed, ts: Date.now(), optimistic: true };
     setMessages((prev) => [...prev, optimistic]);
     setText("");
     setSending(true);
     try {
-      const saved = await api.sendChatMessage({ text: trimmed });
-      setMessages((prev) => prev.map((m) => m.id === optimistic.id ? { ...saved } : m));
+      const saved = await api.sendChatMessage({ conv: conv.id, text: trimmed });
+      setMessages((prev) => prev.map((m) => m.id === optimistic.id ? saved : m));
       lastTsRef.current = Math.max(lastTsRef.current, saved.ts);
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
-      setText(trimmed); // restore on failure
+      setText(trimmed);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -3507,101 +3509,71 @@ function ChatPage({ currentUser }) {
 
   const onKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
 
-  // Group consecutive messages from same sender
-  const grouped = messages.map((m, i) => ({
-    ...m,
-    isFirst: i === 0 || messages[i - 1].username !== m.username,
-    isLast:  i === messages.length - 1 || messages[i + 1].username !== m.username,
-  }));
-
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  const fmtDay = (ts) => {
-    const d = new Date(ts); const today = new Date();
+  const fmtDay  = (ts) => {
+    const d = new Date(ts), today = new Date();
     if (d.toDateString() === today.toDateString()) return "Today";
     const y = new Date(today); y.setDate(today.getDate() - 1);
     if (d.toDateString() === y.toDateString()) return "Yesterday";
     return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
   };
 
-  // Day separators
+  const grouped = messages.map((m, i) => ({
+    ...m,
+    isFirst: i === 0 || messages[i-1].username !== m.username,
+    isLast:  i === messages.length-1 || messages[i+1].username !== m.username,
+  }));
   const withDays = [];
   let lastDay = null;
   for (const m of grouped) {
     const day = new Date(m.ts).toDateString();
-    if (day !== lastDay) { withDays.push({ type: "day", label: fmtDay(m.ts), key: `day-${m.ts}` }); lastDay = day; }
-    withDays.push({ type: "msg", ...m });
+    if (day !== lastDay) { withDays.push({ type:"day", label: fmtDay(m.ts), key:`day-${m.ts}` }); lastDay = day; }
+    withDays.push({ type:"msg", ...m });
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)", minHeight: 400, maxWidth: 720, margin: "32px auto 0" }}>
-      <SectionHead title="Team Chat" />
+  const isGroup = conv?.type === "group";
 
-      {/* message list */}
-      <div
-        className="glass-scroll"
-        style={{ flex: 1, overflowY: "auto", padding: "16px 0", display: "flex", flexDirection: "column", gap: 1 }}
-      >
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* conv header */}
+      <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 99, background: avatarColor(conv?.name||""), display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+          {isGroup ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> : initials(conv?.name||"")}
+        </div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{conv?.name}</div>
+          {isGroup && <div style={{ fontSize: 11, color: C.faint }}>{conv?.members?.length} members</div>}
+        </div>
+      </div>
+
+      {/* messages */}
+      <div className="glass-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px 0", display: "flex", flexDirection: "column", gap: 1, minHeight: 0 }}>
         {withDays.length === 0 && (
-          <div style={{ margin: "auto", textAlign: "center", color: C.faint, fontSize: 13 }}>
-            No messages yet. Say hello 👋
-          </div>
+          <div style={{ margin: "auto", textAlign: "center", color: C.faint, fontSize: 13 }}>No messages yet — say hello 👋</div>
         )}
         {withDays.map((item) => {
           if (item.type === "day") return (
-            <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 20px" }}>
+            <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10, margin: "10px 20px" }}>
               <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
               <span style={{ fontSize: 11, color: C.faint, whiteSpace: "nowrap" }}>{item.label}</span>
               <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
             </div>
           );
-
           const mine = item.username === currentUser;
           const color = avatarColor(item.username);
-
           return (
-            <div key={item.id} style={{ display: "flex", flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-end", gap: 8, padding: "1px 16px", opacity: item.optimistic ? 0.65 : 1 }}>
-              {/* avatar — only on last message in a group and only for others */}
+            <div key={item.id} style={{ display: "flex", flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-end", gap: 7, padding: "1px 14px", opacity: item.optimistic ? 0.6 : 1 }}>
               {!mine && (
-                <div style={{ width: 30, flexShrink: 0, display: "flex", alignItems: "flex-end" }}>
-                  {item.isLast && (
-                    <div style={{ width: 30, height: 30, borderRadius: 99, background: color, display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-                      {initials(item.username)}
-                    </div>
-                  )}
+                <div style={{ width: 28, flexShrink: 0 }}>
+                  {item.isLast && <div style={{ width: 28, height: 28, borderRadius: 99, background: color, display: "grid", placeItems: "center", fontSize: 10, fontWeight: 700, color: "#fff" }}>{initials(item.username)}</div>}
                 </div>
               )}
-
-              <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", maxWidth: "70%", gap: 2 }}>
-                {/* sender name — first in group, others only */}
-                {!mine && item.isFirst && (
-                  <span style={{ fontSize: 11, fontWeight: 600, color, marginLeft: 4, marginBottom: 1 }}>{item.username}</span>
-                )}
-
-                {/* bubble */}
-                <div style={{
-                  background: mine ? "#1d6fe5" : "rgba(255,255,255,0.09)",
-                  color: C.text,
-                  borderRadius: mine
-                    ? `16px 16px ${item.isLast ? 4 : 16}px 16px`
-                    : `16px 16px 16px ${item.isLast ? 4 : 16}px`,
-                  padding: "8px 13px",
-                  fontSize: 14,
-                  lineHeight: 1.45,
-                  wordBreak: "break-word",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                  border: mine ? "none" : "1px solid rgba(255,255,255,0.08)",
-                }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", maxWidth: "68%", gap: 2 }}>
+                {!mine && item.isFirst && isGroup && <span style={{ fontSize: 11, fontWeight: 600, color, marginLeft: 3, marginBottom: 1 }}>{item.username}</span>}
+                <div style={{ background: mine ? CHAT_BLUE : "rgba(255,255,255,0.09)", color: C.text, borderRadius: mine ? `16px 16px ${item.isLast?4:16}px 16px` : `16px 16px 16px ${item.isLast?4:16}px`, padding: "8px 12px", fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", border: mine ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
                   {item.text}
                 </div>
-
-                {/* timestamp — only on last in group */}
-                {item.isLast && (
-                  <span style={{ fontSize: 10.5, color: C.faint, marginLeft: 4, marginRight: 4 }}>
-                    {fmtTime(item.ts)}
-                    {mine && item.optimistic && " · sending…"}
-                  </span>
-                )}
+                {item.isLast && <span style={{ fontSize: 10, color: C.faint, margin: "0 4px" }}>{fmtTime(item.ts)}{mine && item.optimistic && " · sending…"}</span>}
               </div>
             </div>
           );
@@ -3609,40 +3581,151 @@ function ChatPage({ currentUser }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* input bar */}
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.15)", borderRadius: "0 0 20px 20px" }}>
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKey}
-          placeholder="Message…"
-          rows={1}
-          style={{
-            flex: 1, resize: "none", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 20, color: C.text, fontSize: 14, padding: "10px 14px", fontFamily: FONT, outline: "none",
-            lineHeight: 1.45, maxHeight: 120, overflowY: "auto",
-            field_sizing: "content",
-          }}
-          onInput={(e) => {
-            e.target.style.height = "auto";
-            e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-          }}
+      {/* input */}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.12)", flexShrink: 0 }}>
+        <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey}
+          placeholder={`Message ${conv?.name||""}…`} rows={1}
+          style={{ flex: 1, resize: "none", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, color: C.text, fontSize: 14, padding: "9px 14px", fontFamily: FONT, outline: "none", lineHeight: 1.45, maxHeight: 110, overflowY: "auto" }}
+          onInput={(e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 110) + "px"; }}
         />
-        <button
-          onClick={send}
-          disabled={!text.trim() || sending}
-          style={{
-            width: 40, height: 40, borderRadius: 99, border: "none", cursor: text.trim() ? "pointer" : "default",
-            background: text.trim() ? "#1d6fe5" : "rgba(255,255,255,0.08)",
-            display: "grid", placeItems: "center", flexShrink: 0, transition: "background .15s",
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={text.trim() ? "#fff" : C.faint} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+        <button onClick={send} disabled={!text.trim() || sending}
+          style={{ width: 38, height: 38, borderRadius: 99, border: "none", cursor: text.trim() ? "pointer" : "default", background: text.trim() ? CHAT_BLUE : "rgba(255,255,255,0.07)", display: "grid", placeItems: "center", flexShrink: 0, transition: "background .15s" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={text.trim() ? "#fff" : C.faint} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── ChatPage: sidebar + pane ── */
+function ChatPage({ currentUser }) {
+  const [dms, setDms]         = useState([]);
+  const [groups, setGroups]   = useState([]);
+  const [activeConv, setActiveConv] = useState(null);
+  const [newGroup, setNewGroup]     = useState(false);
+  const [groupName, setGroupName]   = useState("");
+  const [groupMembers, setGroupMembers] = useState(new Set());
+  const [search, setSearch]   = useState("");
+
+  const loadConvs = useCallback(async () => {
+    try {
+      const { dms: d, groups: g } = await api.getConversations();
+      setDms(d || []);
+      setGroups(g || []);
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadConvs(); }, [loadConvs]);
+  // Refresh sidebar every 5 s for last-message previews
+  useEffect(() => { const id = setInterval(loadConvs, 5000); return () => clearInterval(id); }, [loadConvs]);
+
+  const createGroup = async () => {
+    const name = groupName.trim();
+    if (!name || groupMembers.size === 0) return;
+    try {
+      const g = await api.createGroup({ name, members: [...groupMembers] });
+      setGroups((prev) => [g, ...prev]);
+      setActiveConv(g);
+      setNewGroup(false); setGroupName(""); setGroupMembers(new Set());
+    } catch {}
+  };
+
+  const allUsers = dms.map((d) => ({ username: d.with, name: d.name }));
+  const q = search.toLowerCase();
+  const filteredDms    = dms.filter((d) => d.name.toLowerCase().includes(q));
+  const filteredGroups = groups.filter((g) => g.name.toLowerCase().includes(q));
+
+  const fmtTs = (ts) => {
+    if (!ts) return "";
+    const d = new Date(ts), now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  };
+
+  const SideItem = ({ conv }) => {
+    const active = activeConv?.id === conv.id;
+    const isGroup = conv.type === "group";
+    return (
+      <div onClick={() => setActiveConv(conv)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderRadius: 10, cursor: "pointer", background: active ? "rgba(29,111,229,0.18)" : "transparent", transition: "background .12s" }}
+        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+        onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+        <div style={{ width: 36, height: 36, borderRadius: 99, background: avatarColor(conv.name), display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+          {isGroup ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> : initials(conv.name)}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? C.text : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "65%" }}>{conv.name}</span>
+            {conv.lastTs > 0 && <span style={{ fontSize: 10.5, color: C.faint, flexShrink: 0 }}>{fmtTs(conv.lastTs)}</span>}
+          </div>
+          {conv.lastMsg && <div style={{ fontSize: 11.5, color: C.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{conv.lastMsg}</div>}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", height: "calc(100vh - 190px)", minHeight: 460, margin: "28px 0 0", gap: 0, ...GLASS, borderRadius: 20, overflow: "hidden" }}>
+
+      {/* ── Sidebar ── */}
+      <div style={{ width: 270, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
+        {/* header */}
+        <div style={{ padding: "16px 14px 10px", flexShrink: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10 }}>Messages</div>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…"
+            style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, color: C.text, fontSize: 12.5, padding: "7px 11px", fontFamily: FONT, outline: "none" }} />
+        </div>
+
+        <div className="glass-scroll" style={{ flex: 1, overflowY: "auto", padding: "4px 6px" }}>
+          {/* Direct Messages */}
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.faint, letterSpacing: 0.8, textTransform: "uppercase", padding: "6px 8px 4px" }}>Direct Messages</div>
+          {filteredDms.length === 0 && <div style={{ fontSize: 12, color: C.faint, padding: "4px 8px" }}>No teammates yet</div>}
+          {filteredDms.map((d) => <SideItem key={d.id} conv={d} />)}
+
+          {/* Groups */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 8px 4px" }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: C.faint, letterSpacing: 0.8, textTransform: "uppercase" }}>Groups</span>
+            <button onClick={() => setNewGroup(true)} title="New group"
+              style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", display: "grid", placeItems: "center", padding: 2, borderRadius: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          {filteredGroups.length === 0 && !newGroup && <div style={{ fontSize: 12, color: C.faint, padding: "4px 8px" }}>No groups yet</div>}
+          {filteredGroups.map((g) => <SideItem key={g.id} conv={g} />)}
+
+          {/* New group form */}
+          {newGroup && (
+            <div style={{ margin: "6px 4px", padding: "12px", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)" }}>
+              <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Group name…" autoFocus
+                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.text, fontSize: 12.5, padding: "6px 10px", fontFamily: FONT, outline: "none", marginBottom: 8 }} />
+              <div style={{ fontSize: 11, color: C.faint, marginBottom: 5 }}>Add members:</div>
+              {allUsers.map((u) => (
+                <label key={u.username} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", cursor: "pointer", fontSize: 12.5, color: C.text }}>
+                  <input type="checkbox" checked={groupMembers.has(u.username)} onChange={(e) => { const s = new Set(groupMembers); e.target.checked ? s.add(u.username) : s.delete(u.username); setGroupMembers(s); }} style={{ accentColor: CHAT_BLUE }} />
+                  {u.name || u.username}
+                </label>
+              ))}
+              <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                <button onClick={createGroup} style={{ flex: 1, background: CHAT_BLUE, border: "none", borderRadius: 8, color: "#fff", fontSize: 12, padding: "6px 0", cursor: "pointer", fontFamily: FONT, fontWeight: 600 }}>Create</button>
+                <button onClick={() => { setNewGroup(false); setGroupName(""); setGroupMembers(new Set()); }} style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: C.muted, fontSize: 12, padding: "6px 0", cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Message area ── */}
+      {activeConv ? (
+        <MessagePane conv={activeConv} currentUser={currentUser} />
+      ) : (
+        <div style={{ flex: 1, display: "grid", placeItems: "center" }}>
+          <div style={{ textAlign: "center", color: C.faint }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10, opacity: 0.4 }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <div style={{ fontSize: 13 }}>Select a conversation</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
