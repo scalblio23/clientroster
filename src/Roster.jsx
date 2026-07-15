@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.17</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.18</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -550,6 +550,7 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const [newOptDraft, setNewOptDraft] = useState("");
   const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0, flip: false });
   const ref = useRef(null);
+  const portalRef = useRef(null);
   const colorInputRef = useRef(null);
 
   useEffect(() => {
@@ -560,7 +561,9 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
       const flip = spaceBelow < 240;
       setDropPos({ top: flip ? r.top - 6 : r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190), flip });
     }
-    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const close = (e) => {
+      if (!ref.current?.contains(e.target) && !portalRef.current?.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
@@ -570,7 +573,7 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const s = isEmpty ? { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" } : chipStyle(color);
 
   const dropdown = open && createPortal(
-    <div onClick={(e) => e.stopPropagation()} style={{
+    <div ref={portalRef} onClick={(e) => e.stopPropagation()} style={{
       position: "fixed",
       top: dropPos.flip ? undefined : dropPos.top,
       bottom: dropPos.flip ? window.innerHeight - dropPos.top : undefined,
@@ -843,6 +846,13 @@ function ClientTable({ clients, tasks, addTask, removeTask, updateClient, enumCo
           </button>
           <BlurInput value={c.name} onCommit={(v) => updateClient(c.name, { name: v })}
             style={{ ...cellInput(), fontSize: 14, fontWeight: 600, minWidth: 0 }} />
+          <button
+            onClick={() => updateClient(c.name, { archived: !c.archived })}
+            title={c.archived ? "Unarchive client" : "Archive client"}
+            style={{ background: "none", border: "none", cursor: "pointer", color: c.archived ? C.orange : C.faint, padding: 2, flexShrink: 0, display: "flex", alignItems: "center", opacity: 0.6 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          </button>
         </div>
       );
       case "notes": return (
@@ -1278,6 +1288,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
   const [addingClient, setAddingClient] = useState(false);
   const [onboardingClient, setOnboardingClient] = useState(null);
   const [view, setView] = useState("table");
+  const [showArchived, setShowArchived] = useState(false);
   const [propOpen, setPropOpen] = useState(false);
   const propRef = useRef(null);
   const [filters, setFilters] = useState([]);
@@ -1401,7 +1412,10 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
     setFilters(Array.isArray(v.filters) ? v.filters : []);
   };
 
-  const counts = clients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
+  const activeClients   = clients.filter((c) => !c.archived);
+  const archivedClients = clients.filter((c) => c.archived);
+  const visibleClients  = showArchived ? archivedClients : activeClients;
+  const counts = activeClients.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
   const activeViewName = savedViews.find((v) => {
     if (v.sortKey !== sortKey || v.sortDir !== sortDir) return false;
     const savedHidden = new Set(Array.isArray(v.hiddenCols) ? v.hiddenCols : []);
@@ -1420,9 +1434,9 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
     <>
       {/* hero */}
       <div style={{ textAlign: "center", marginTop: 40 }}>
-        <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>ALL CLIENTS · SCALBL</div>
+        <div style={{ fontSize: 12, letterSpacing: 3, color: C.faint, fontWeight: 600 }}>{showArchived ? "ARCHIVED CLIENTS" : "ALL CLIENTS"} · SCALBL</div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", marginTop: 14 }}>
-          <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{clients.length}</span>
+          <span style={{ fontSize: 88, fontWeight: 800, color: C.text, letterSpacing: -2, lineHeight: 1 }}>{visibleClients.length}</span>
           <span style={{ fontSize: 34, fontWeight: 700, color: C.faint, marginLeft: 12 }}>total</span>
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 30, flexWrap: "wrap" }}>
@@ -1438,10 +1452,15 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
           title="Clients"
           right={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 16 }}>
+              {/* archive toggle */}
+              <button onClick={() => setShowArchived((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: showArchived ? C.orangeSoft : "rgba(255,255,255,0.05)", border: `1px solid ${showArchived ? C.orangeSoftBorder : "rgba(255,255,255,0.10)"}`, color: showArchived ? C.orangeBright : C.muted, borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                {showArchived ? `Archived (${archivedClients.length})` : "Show archived"}
+              </button>
               <ViewToggle view={view} setView={setView} />
-              <span onClick={() => setAddingClient(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, color: C.orangeBright, cursor: "pointer" }}>
+              {!showArchived && <span onClick={() => setAddingClient(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, color: C.orangeBright, cursor: "pointer" }}>
                 <Plus size={15} /> Add client
-              </span>
+              </span>}
             </span>
           }
         />
@@ -1550,7 +1569,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
                 {/* ── Filter section ── */}
                 <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
                   <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 600, color: C.faint, textTransform: "uppercase", marginBottom: 8 }}>
-                    Filter {filters.length > 0 && `· ${applyFilters(clients).length} of ${clients.length} shown`}
+                    Filter {filters.length > 0 && `· ${applyFilters(visibleClients).length} of ${visibleClients.length} shown`}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {filters.map((f, idx) => {
@@ -1650,7 +1669,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
 
         {view === "cards" ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-            {clients.map((c) => (
+            {applyFilters(visibleClients).map((c) => (
               <ClientCard
                 key={c.name} c={c}
                 tasks={tasks.filter((t) => t.client === c.name)}
@@ -1660,7 +1679,7 @@ function ClientsPage({ clients, tasks, addTask, removeTask, updateClient, addCli
             ))}
           </div>
         ) : (
-          <ClientTable clients={applyFilters(clients)} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} onOpenOnboarding={setOnboardingClient} />
+          <ClientTable clients={applyFilters(visibleClients)} tasks={tasks} addTask={addTask} removeTask={removeTask} updateClient={updateClient} enumColors={enumColors} updateEnumColor={updateEnumColor} nicheOptions={nicheOptions} addNicheOption={addNicheOption} sortKey={sortKey} setSortKey={setSortKey} sortDir={sortDir} setSortDir={setSortDir} onOpenLog={setLogClient} colOrder={colOrder} setColOrder={setColOrder} hiddenCols={hiddenCols} onOpenOnboarding={setOnboardingClient} />
         )}
       </div>
       {logClient && (
