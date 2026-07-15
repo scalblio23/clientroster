@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.18</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.19</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -548,24 +548,27 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const [editingColor, setEditingColor] = useState(null);
   const [addingNew, setAddingNew] = useState(false);
   const [newOptDraft, setNewOptDraft] = useState("");
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0, flip: false });
-  const ref = useRef(null);
-  const portalRef = useRef(null);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 190, flip: false });
+  const btnRef = useRef(null);
   const colorInputRef = useRef(null);
 
   useEffect(() => {
     if (!open) { setEditingColor(null); return; }
-    if (ref.current) {
-      const r = ref.current.getBoundingClientRect();
+    const update = () => {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - r.bottom;
-      const flip = spaceBelow < 240;
-      setDropPos({ top: flip ? r.top - 6 : r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190), flip });
-    }
-    const close = (e) => {
-      if (!ref.current?.contains(e.target) && !portalRef.current?.contains(e.target)) setOpen(false);
+      const flip = spaceBelow < 260;
+      setDropPos({ top: flip ? r.top : r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190), flip });
     };
+    update();
+    const close = (e) => { if (!btnRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", update, true);
+    };
   }, [open]);
 
   const isEmpty = !value;
@@ -573,7 +576,7 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const s = isEmpty ? { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" } : chipStyle(color);
 
   const dropdown = open && createPortal(
-    <div ref={portalRef} onClick={(e) => e.stopPropagation()} style={{
+    <div onMouseDown={(e) => e.stopPropagation()} style={{
       position: "fixed",
       top: dropPos.flip ? undefined : dropPos.top,
       bottom: dropPos.flip ? window.innerHeight - dropPos.top : undefined,
@@ -679,8 +682,8 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
     , document.body);
 
   return (
-    <div ref={ref} style={{ display: "inline-flex", maxWidth: "100%" }}>
-      <button onClick={() => setOpen((o) => !o)} style={{
+    <div style={{ display: "inline-flex", maxWidth: "100%" }}>
+      <button ref={btnRef} onClick={() => setOpen((o) => !o)} style={{
         display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
         background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
         borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
