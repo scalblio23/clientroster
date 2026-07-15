@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.16</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.17</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -548,19 +548,19 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const [editingColor, setEditingColor] = useState(null);
   const [addingNew, setAddingNew] = useState(false);
   const [newOptDraft, setNewOptDraft] = useState("");
-  const [dropUp, setDropUp] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0, flip: false });
   const ref = useRef(null);
   const colorInputRef = useRef(null);
 
   useEffect(() => {
     if (!open) { setEditingColor(null); return; }
-    // determine whether to flip upward
     if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setDropUp(spaceBelow < 220);
+      const r = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom;
+      const flip = spaceBelow < 240;
+      setDropPos({ top: flip ? r.top - 6 : r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190), flip });
     }
-    const close = (e) => { if (!ref.current?.contains(e.target)) { setOpen(false); } };
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
@@ -569,27 +569,16 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
   const color = colors[value] || "#9aa0a8";
   const s = isEmpty ? { bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.10)", fg: "#9aa0a8" } : chipStyle(color);
 
-  return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex", maxWidth: "100%" }}>
-      <button onClick={() => setOpen((o) => !o)} style={{
-        display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
-        background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
-        borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
-        whiteSpace: "nowrap", fontFamily: FONT, maxWidth: "100%", overflow: "hidden",
-      }}>
-        {!isEmpty && <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />}
-        {isEmpty ? "Select…" : (labelMap ? labelMap[value] || value : value)}
-      </button>
-
-      {open && (
-        <div onClick={(e) => e.stopPropagation()} style={{
-          position: "absolute",
-          ...(dropUp ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
-          left: 0, zIndex: 999,
-          background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: 190,
-        }}>
+  const dropdown = open && createPortal(
+    <div onClick={(e) => e.stopPropagation()} style={{
+      position: "fixed",
+      top: dropPos.flip ? undefined : dropPos.top,
+      bottom: dropPos.flip ? window.innerHeight - dropPos.top : undefined,
+      left: dropPos.left, zIndex: 9999,
+      background: "#1c1c1f", border: "1px solid rgba(255,255,255,0.12)",
+      borderRadius: 12, padding: 6, display: "flex", flexDirection: "column", gap: 2,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.6)", minWidth: dropPos.minWidth,
+    }}>
           {options.map((opt) => {
             const optColor = colors[opt] || "#9aa0a8";
             const isSelected = opt === value;
@@ -684,7 +673,20 @@ function SelectPicker({ field, value, options, colors, onChangeValue, onChangeCo
             </div>
           )}
         </div>
-      )}
+    , document.body);
+
+  return (
+    <div ref={ref} style={{ display: "inline-flex", maxWidth: "100%" }}>
+      <button onClick={() => setOpen((o) => !o)} style={{
+        display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+        background: s.bg, border: `1px solid ${s.bd}`, color: s.fg,
+        borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600,
+        whiteSpace: "nowrap", fontFamily: FONT, maxWidth: "100%", overflow: "hidden",
+      }}>
+        {!isEmpty && <span style={{ width: 6, height: 6, borderRadius: 99, background: s.fg, flexShrink: 0 }} />}
+        {isEmpty ? "Select…" : (labelMap ? labelMap[value] || value : value)}
+      </button>
+      {dropdown}
     </div>
   );
 }
