@@ -294,7 +294,7 @@ function Header({ saveStatus, user, onLogout }) {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.19</div>
+          <div style={{ fontSize: 10, color: C.text, fontWeight: 500, letterSpacing: 0.5 }}>v2.20</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -3170,7 +3170,7 @@ function ClientStatsPage({ clients, updateClient, enumColors }) {
 }
 
 /* ---------- call schedule ---------- */
-const SCHED_GRID = "52px 110px 130px 1.2fr 1.4fr 2fr 44px";
+const SCHED_GRID = "52px 110px 130px 1.2fr 1.4fr 2fr 72px";
 
 function timeAddMins(hhmm, mins) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -3203,6 +3203,14 @@ function CallSchedulePage({ clients, schedule, setSchedule }) {
 
   const updateRow = (id, patch) => setSchedule((s) => s.map((r) => r.id === id ? { ...r, ...patch } : r));
   const removeRow = (id) => setSchedule((s) => s.filter((r) => r.id !== id));
+  const moveRow = (id, dir) => setSchedule((s) => {
+    const i = s.findIndex((r) => r.id === id);
+    const j = i + dir;
+    if (j < 0 || j >= s.length) return s;
+    const next = [...s];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
 
   // compute cascading start times
   const rows = schedule.map((r, i) => {
@@ -3265,7 +3273,7 @@ function CallSchedulePage({ clients, schedule, setSchedule }) {
                 <span style={hdrStyle}>Client</span>
                 <span style={hdrStyle}>KPI</span>
                 <span style={hdrStyle}>Notes</span>
-                <span />
+                <span style={hdrStyle}>Move</span>
               </div>
 
               {rows.length === 0 && (
@@ -3333,10 +3341,18 @@ function CallSchedulePage({ clients, schedule, setSchedule }) {
                       style={{ ...cellBase, width: "100%", padding: "5px 0" }}
                     />
 
-                    {/* delete */}
-                    <button onClick={() => removeRow(r.id)} style={{ border: "none", background: "transparent", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center" }}>
-                      <Trash2 size={15} />
-                    </button>
+                    {/* move + delete */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <button onClick={() => moveRow(r.id, -1)} disabled={i === 0} title="Move up" style={{ border: "none", background: "transparent", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? C.faint : C.muted, display: "grid", placeItems: "center", padding: 3, opacity: i === 0 ? 0.3 : 1 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2l4 5H2z"/></svg>
+                      </button>
+                      <button onClick={() => moveRow(r.id, 1)} disabled={i === rows.length - 1} title="Move down" style={{ border: "none", background: "transparent", cursor: i === rows.length - 1 ? "default" : "pointer", color: i === rows.length - 1 ? C.faint : C.muted, display: "grid", placeItems: "center", padding: 3, opacity: i === rows.length - 1 ? 0.3 : 1 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 10L2 5h8z"/></svg>
+                      </button>
+                      <button onClick={() => removeRow(r.id)} title="Delete" style={{ border: "none", background: "transparent", cursor: "pointer", color: C.faint, display: "grid", placeItems: "center", padding: 3 }}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
